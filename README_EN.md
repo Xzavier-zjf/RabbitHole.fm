@@ -1,10 +1,28 @@
 # RabbitHole.fm
 
+![Java](https://img.shields.io/badge/Java-17-blue)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2.5-6DB33F)
+![Vue](https://img.shields.io/badge/Vue-3.5-42b883)
+![Vite](https://img.shields.io/badge/Vite-8.0-646CFF)
+![License](https://img.shields.io/badge/License-MIT-black)
+
 RabbitHole.fm is a web radio project that combines Netease Cloud Music integration, song request workflows, and AI DJ voice narration. It uses a separated frontend-backend architecture: the frontend is built with Vue 3 + Vite, while the backend is built with Spring Boot 3. The system supports user authentication, channel playback, music search, song requests, favorites, listening history, and AI-generated DJ transitions.
 
 [中文](./README.md)
 
 ![RabbitHole.fm Preview](./frontend/src/assets/hero.png)
+
+## Contents
+
+- [Highlights](#highlights)
+- [Tech Stack](#tech-stack)
+- [Architecture](#architecture)
+- [Project Structure](#project-structure)
+- [Quick Start](#quick-start)
+- [Core API Modules](#core-api-modules)
+- [Deployment Notes](#deployment-notes)
+- [Notes](#notes)
+- [License](#license)
 
 ## Highlights
 
@@ -20,6 +38,18 @@ RabbitHole.fm is a web radio project that combines Netease Cloud Music integrati
 - Backend: Spring Boot 3, Spring Security, MyBatis-Plus, Redis, OkHttp, JWT
 - Database: MySQL
 - External services: NeteaseCloudMusicApi, Xiaomi Mimo TTS / LLM
+
+## Architecture
+
+```mermaid
+flowchart LR
+    U["User Browser"] --> F["Vue 3 Frontend"]
+    F --> B["Spring Boot Backend"]
+    B --> M["MySQL"]
+    B --> R["Redis"]
+    B --> N["NeteaseCloudMusicApi"]
+    B --> X["Mimo TTS / LLM"]
+```
 
 ## Project Structure
 
@@ -103,6 +133,12 @@ The Vite dev server proxies `/api` and `/avatars` requests to `http://localhost:
 - `/api/radio`: channel loading, next-item retrieval, DJ audio generation
 - `/api/request`: song requests, cancellation, personal request history, channel queue
 - `/api/tts`: text-to-speech testing and synthesis
+
+## Possible Next Improvements
+
+- Add a live demo URL and production deployment guide
+- Include API request and response examples
+- Add testing notes, FAQ, and release history
 
 ## Deployment Notes
 
