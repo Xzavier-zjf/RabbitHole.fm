@@ -36,9 +36,17 @@ RabbitHole.fm is a web radio project that combines Netease Cloud Music integrati
 
 ### Radio Home Preview
 
-![RabbitHole.fm Radio Home](./frontend/src/assets/hero.png)
+![RabbitHole.fm Radio Home](./doc/screenshots/home.png)
 
-This preview image gives the repository homepage a clearer product impression. Once you add more real UI captures for the login page, request page, and profile page, this section can grow into a fuller gallery.
+### Login Page
+
+![RabbitHole.fm Login](./doc/screenshots/login.png)
+
+### Request Page
+
+![RabbitHole.fm Request](./doc/screenshots/request.png)
+
+These screenshots were captured from the locally running application, giving the repository a more realistic view of the product interface and core workflows.
 
 ## Tech Stack
 
@@ -186,7 +194,7 @@ curl "http://localhost:8080/api/radio/channel/19723756"
 ## Possible Next Improvements
 
 - Add a live demo URL and production deployment guide
-- Add more real UI screenshots such as login, request, and profile pages
+- Add more real UI screenshots such as favorites, history, and profile pages
 - Add testing notes, FAQ, and release history
 
 ## Deployment Notes
