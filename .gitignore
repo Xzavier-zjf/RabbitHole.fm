@@ -1,0 +1,13 @@
+.idea/
+.vscode/
+.claude/
+.playwright-cli/
+
+**/node_modules/
+**/dist/
+**/target/
+**/logs/
+**/*.log
+
+.DS_Store
+Thumbs.db

@@ -1,0 +1,15 @@
+@echo off
+title 网易云音乐 API - 端口 3000
+echo === 正在启动网易云音乐 API ===
+echo.
+echo 窗口保持打开即表示服务运行中，关闭窗口停止服务。
+echo 访问 http://localhost:3000 验证是否启动成功。
+echo.
+set "http_proxy="
+set "https_proxy="
+set "HTTP_PROXY="
+set "HTTPS_PROXY="
+set "no_proxy=127.0.0.1,localhost"
+set "NO_PROXY=127.0.0.1,localhost"
+npx NeteaseCloudMusicApi@latest
+pause

@@ -1,0 +1,149 @@
+:root {
+  color-scheme: dark;
+  --font-ui: 'HarmonyOS Sans SC', 'Source Han Sans SC', 'Microsoft YaHei', sans-serif;
+  --font-display: 'Fraunces', 'Times New Roman', serif;
+  --font-lyric: 'LXGW WenKai', 'STKaiti', serif;
+
+  --radius-xs: 10px;
+  --radius-sm: 14px;
+  --radius-md: 18px;
+  --radius-lg: 24px;
+  --radius-xl: 32px;
+
+  --shadow-soft: 0 12px 36px rgba(8, 6, 12, 0.18);
+  --shadow-cover: 0 0 100px rgba(212, 165, 116, 0.18), 0 0 200px rgba(155, 123, 196, 0.08);
+  --transition-theme: 250ms ease;
+  --transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg-primary: #13101a;
+  --bg-secondary: rgba(30, 26, 40, 0.88);
+  --bg-elevated: rgba(42, 36, 56, 0.9);
+  --bg-card: rgba(32, 28, 45, 0.8);
+  --bg-glass: rgba(19, 16, 26, 0.72);
+  --text-primary: #f4ede0;
+  --text-secondary: #a8a0b8;
+  --text-tertiary: #6b6480;
+  --accent: #d4a574;
+  --accent-soft: #e8c9a0;
+  --mystic: #9b7bc4;
+  --highlight: #e27d6b;
+  --success: #7fb685;
+  --divider: rgba(244, 237, 224, 0.06);
+  --input-bg: rgba(244, 237, 224, 0.04);
+  --input-border: rgba(244, 237, 224, 0.09);
+  --page-gradient:
+    radial-gradient(circle at top, rgba(155, 123, 196, 0.14), transparent 28%),
+    radial-gradient(circle at 70% 22%, rgba(212, 165, 116, 0.12), transparent 24%),
+    linear-gradient(180deg, #17131f 0%, #13101a 36%, #17131f 100%);
+  --cover-mask: radial-gradient(circle at center, transparent 0%, rgba(19, 16, 26, 0.28) 58%, #13101a 86%);
+  --panel-shadow: 0 24px 80px rgba(6, 4, 9, 0.45);
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg-primary: #faf5ec;
+  --bg-secondary: rgba(255, 255, 255, 0.92);
+  --bg-elevated: rgba(255, 255, 255, 0.98);
+  --bg-card: rgba(255, 255, 255, 0.9);
+  --bg-glass: rgba(250, 245, 236, 0.74);
+  --text-primary: #2b2218;
+  --text-secondary: #7a6e5e;
+  --text-tertiary: #b8ac9a;
+  --accent: #b8612c;
+  --accent-soft: #f0d9bc;
+  --mystic: #7a5ba6;
+  --highlight: #c84b3f;
+  --success: #5a8a5f;
+  --divider: rgba(43, 34, 24, 0.08);
+  --input-bg: rgba(255, 255, 255, 0.88);
+  --input-border: rgba(43, 34, 24, 0.08);
+  --page-gradient:
+    radial-gradient(circle at top, rgba(240, 217, 188, 0.95), transparent 34%),
+    radial-gradient(circle at 80% 16%, rgba(122, 91, 166, 0.08), transparent 20%),
+    linear-gradient(180deg, #fffdf8 0%, #faf5ec 50%, #f4ecdd 100%);
+  --cover-mask: radial-gradient(circle at center, transparent 0%, rgba(250, 245, 236, 0.46) 56%, rgba(250, 245, 236, 0.95) 100%);
+  --panel-shadow: 0 18px 50px rgba(95, 67, 37, 0.1);
+  --shadow-soft: 0 16px 42px rgba(89, 66, 41, 0.08);
+  --shadow-cover: 0 20px 60px rgba(184, 97, 44, 0.12), 0 8px 24px rgba(122, 91, 166, 0.06);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  width: 100%;
+  height: 100%;
+}
+
+html {
+  background: var(--bg-primary);
+  transition: background var(--transition-theme), color var(--transition-theme);
+}
+
+body {
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: var(--page-gradient);
+  color: var(--text-primary);
+  overflow: hidden;
+  transition:
+    background var(--transition-theme),
+    color var(--transition-theme);
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 38%, rgba(212, 165, 116, 0.06), transparent 0 24%),
+    radial-gradient(circle at 52% 42%, rgba(155, 123, 196, 0.07), transparent 0 40%);
+  opacity: 1;
+  transition: opacity var(--transition-theme);
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+button {
+  color: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 38%, transparent);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--text-tertiary) 40%, transparent);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--accent) 50%, transparent);
+}
