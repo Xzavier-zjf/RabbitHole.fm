@@ -2,17 +2,17 @@
 
 RabbitHole.fm 是一个结合了网易云音乐接口、点歌流程与 AI DJ 语音播报的 Web 电台项目。项目采用前后端分离架构，前端基于 Vue 3 + Vite，后端基于 Spring Boot 3，支持用户登录、频道收听、歌曲搜索、点歌、收藏、播放历史和 AI DJ 串场播报。
 
-English README: [README_EN.md](D:\JAVA\ideaProjects\RabbitHole.fm\README_EN.md)
+[English](./README_EN.md)
 
-## 项目特性
+![RabbitHole.fm Preview](./frontend/src/assets/hero.png)
 
-- 电台频道播放：按频道加载节目队列并连续播放歌曲
-- 歌曲搜索与详情获取：通过网易云音乐接口检索歌曲并获取播放链接、歌词、封面
-- AI DJ 串场：基于歌曲上下文生成播报文案，并通过 TTS 输出音频
-- 用户系统：支持注册、登录、资料更新与头像上传
-- 收藏与历史：支持收藏歌曲、收藏频道和记录播放历史
-- 点歌队列：支持登录用户点歌、查看个人点歌记录与频道队列
-- 封面代理：后端代理封面资源，规避部分直链访问限制
+## 项目亮点
+
+- 电台式连续播放：按频道加载节目队列并连续播放歌曲
+- AI DJ 串场播报：基于前后歌曲上下文生成播报文案，并通过 TTS 输出语音
+- 点歌互动：支持用户登录后点歌、取消点歌、查看个人点歌记录和频道点歌队列
+- 音乐信息整合：支持歌曲搜索、歌曲详情、歌词、封面与播放链接获取
+- 用户能力：支持注册、登录、收藏歌曲、收藏频道、播放历史记录与头像上传
 
 ## 技术栈
 
@@ -21,7 +21,7 @@ English README: [README_EN.md](D:\JAVA\ideaProjects\RabbitHole.fm\README_EN.md)
 - 数据库：MySQL
 - 外部能力：NeteaseCloudMusicApi、小米 Mimo TTS / LLM
 
-## 目录结构
+## 项目结构
 
 ```text
 RabbitHole.fm/
@@ -35,7 +35,9 @@ RabbitHole.fm/
 └─ README_EN.md             英文说明
 ```
 
-## 环境要求
+## 快速开始
+
+### 环境要求
 
 - JDK 17
 - Maven 3.9+
@@ -43,15 +45,13 @@ RabbitHole.fm/
 - MySQL 8.x
 - Redis 7.x
 
-## 运行前准备
-
 ### 1. 初始化数据库
 
-执行 [sql/init.sql](D:\JAVA\ideaProjects\RabbitHole.fm\sql\init.sql) 创建项目所需表结构。
+执行 [sql/init.sql](./sql/init.sql) 创建项目所需表结构。
 
-### 2. 配置后端参数
+### 2. 配置后端
 
-后端配置文件位于 [backend/src/main/resources/application.yml](D:\JAVA\ideaProjects\RabbitHole.fm\backend\src\main\resources\application.yml)。
+后端配置文件位于 [backend/src/main/resources/application.yml](./backend/src/main/resources/application.yml)。
 
 默认配置包括：
 
@@ -63,32 +63,30 @@ RabbitHole.fm/
 
 如果你的本地数据库、Redis 密码或第三方接口配置不同，请按需修改。
 
-### 3. 启动 Redis 和网易云接口
+### 3. 启动依赖服务
 
-可直接使用 Docker Compose：
+使用 Docker Compose 启动 Redis 和网易云接口：
 
 ```bash
 docker compose up -d
 ```
 
-或单独启动网易云接口：
+也可以单独启动网易云接口：
 
 ```bash
 npx NeteaseCloudMusicApi
 ```
 
-项目仓库内也提供了 [start-netease-api.bat](D:\JAVA\ideaProjects\RabbitHole.fm\start-netease-api.bat) 作为 Windows 启动脚本参考。
+仓库内提供了 [start-netease-api.bat](./start-netease-api.bat) 作为 Windows 启动脚本参考。
 
-## 启动项目
-
-### 启动后端
+### 4. 启动后端
 
 ```bash
 cd backend
 mvn spring-boot:run
 ```
 
-### 启动前端
+### 5. 启动前端
 
 ```bash
 cd frontend
@@ -98,7 +96,7 @@ npm run dev
 
 前端开发服务器默认通过 Vite 代理将 `/api` 和 `/avatars` 请求转发到 `http://localhost:8080`。
 
-## 主要接口模块
+## 核心模块
 
 - `/api/user`：注册、登录、资料、头像、收藏、历史
 - `/api/music`：搜索歌曲、查询歌曲详情、封面代理、接口状态
@@ -114,10 +112,10 @@ npm run dev
 
 ## 注意事项
 
-- 当前 [backend/src/main/resources/application.yml](D:\JAVA\ideaProjects\RabbitHole.fm\backend\src\main\resources\application.yml) 中包含示例数据库账号、Redis 密码和 JWT 配置，正式部署前建议替换为你自己的安全配置
+- 当前 [backend/src/main/resources/application.yml](./backend/src/main/resources/application.yml) 中包含示例数据库账号、Redis 密码和 JWT 配置，正式部署前建议替换为你自己的安全配置
 - 网易云音乐相关接口依赖第三方服务，稳定性与可用性受其运行状态影响
 - 若未配置 `MIMO_API_KEY`，AI DJ 与 TTS 相关能力将无法正常工作
 
 ## License
 
-本项目使用 [LICENSE](D:\JAVA\ideaProjects\RabbitHole.fm\LICENSE) 中定义的许可协议。
+本项目使用 [LICENSE](./LICENSE) 中定义的许可协议。
