@@ -134,6 +134,55 @@ npm run dev
 - `/api/request`：点歌、取消点歌、个人点歌记录、频道点歌队列
 - `/api/tts`：文本转语音测试与合成
 
+## 页面预览建议
+
+如果你准备继续完善仓库展示，建议在后续补充以下页面截图：
+
+- 首页电台播放页：展示频道列表、当前播放卡片和歌词区域
+- 点歌页：展示搜索、点歌输入框和点歌队列
+- 登录或个人中心页：展示用户资料、收藏和历史记录
+
+## 接口示例
+
+### 用户登录
+
+```bash
+curl -X POST http://localhost:8080/api/user/login \
+  -H "Content-Type: application/json" \
+  -d "{\"username\":\"demo\",\"password\":\"123456\"}"
+```
+
+示例响应：
+
+```json
+{
+  "code": 0,
+  "msg": "登录成功",
+  "token": "your-jwt-token"
+}
+```
+
+### 搜索歌曲
+
+```bash
+curl "http://localhost:8080/api/music/search?keywords=Jay&limit=10"
+```
+
+### 提交点歌
+
+```bash
+curl -X POST http://localhost:8080/api/request \
+  -H "Authorization: Bearer your-jwt-token" \
+  -H "Content-Type: application/json" \
+  -d "{\"channelId\":32953014,\"songId\":2608813267,\"message\":\"这首送给深夜还在写代码的人\"}"
+```
+
+### 获取频道播放列表
+
+```bash
+curl "http://localhost:8080/api/radio/channel/19723756"
+```
+
 ## 后续可扩展方向
 
 - 接入真实在线演示地址与生产环境部署说明

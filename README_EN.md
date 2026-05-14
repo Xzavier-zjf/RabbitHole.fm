@@ -134,6 +134,55 @@ The Vite dev server proxies `/api` and `/avatars` requests to `http://localhost:
 - `/api/request`: song requests, cancellation, personal request history, channel queue
 - `/api/tts`: text-to-speech testing and synthesis
 
+## Suggested Screenshots
+
+If you want to keep improving the repository presentation, these screenshots would be the most useful next additions:
+
+- Main radio page with channel list, player panel, and lyrics area
+- Song request page with search, message input, and queue display
+- Login or profile page with favorites and listening history
+
+## API Examples
+
+### User login
+
+```bash
+curl -X POST http://localhost:8080/api/user/login \
+  -H "Content-Type: application/json" \
+  -d "{\"username\":\"demo\",\"password\":\"123456\"}"
+```
+
+Example response:
+
+```json
+{
+  "code": 0,
+  "msg": "登录成功",
+  "token": "your-jwt-token"
+}
+```
+
+### Search songs
+
+```bash
+curl "http://localhost:8080/api/music/search?keywords=Jay&limit=10"
+```
+
+### Submit a song request
+
+```bash
+curl -X POST http://localhost:8080/api/request \
+  -H "Authorization: Bearer your-jwt-token" \
+  -H "Content-Type: application/json" \
+  -d "{\"channelId\":32953014,\"songId\":2608813267,\"message\":\"Dedicated to everyone still coding late at night\"}"
+```
+
+### Get channel playlist
+
+```bash
+curl "http://localhost:8080/api/radio/channel/19723756"
+```
+
 ## Possible Next Improvements
 
 - Add a live demo URL and production deployment guide
