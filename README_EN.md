@@ -32,6 +32,14 @@ RabbitHole.fm is a web radio project that combines Netease Cloud Music integrati
 - Music search, song detail lookup, lyrics, covers, and playback URLs
 - User features including favorites, listening history, profile editing, and avatar upload
 
+## Screenshots
+
+### Radio Home Preview
+
+![RabbitHole.fm Radio Home](./frontend/src/assets/hero.png)
+
+This preview image gives the repository homepage a clearer product impression. Once you add more real UI captures for the login page, request page, and profile page, this section can grow into a fuller gallery.
+
 ## Tech Stack
 
 - Frontend: Vue 3, Vite, Vue Router, Pinia, Axios
@@ -134,14 +142,6 @@ The Vite dev server proxies `/api` and `/avatars` requests to `http://localhost:
 - `/api/request`: song requests, cancellation, personal request history, channel queue
 - `/api/tts`: text-to-speech testing and synthesis
 
-## Suggested Screenshots
-
-If you want to keep improving the repository presentation, these screenshots would be the most useful next additions:
-
-- Main radio page with channel list, player panel, and lyrics area
-- Song request page with search, message input, and queue display
-- Login or profile page with favorites and listening history
-
 ## API Examples
 
 ### User login
@@ -186,7 +186,7 @@ curl "http://localhost:8080/api/radio/channel/19723756"
 ## Possible Next Improvements
 
 - Add a live demo URL and production deployment guide
-- Include API request and response examples
+- Add more real UI screenshots such as login, request, and profile pages
 - Add testing notes, FAQ, and release history
 
 ## Deployment Notes
