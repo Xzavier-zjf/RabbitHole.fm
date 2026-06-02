@@ -4,6 +4,8 @@ import LoginView from './views/LoginView.vue'
 import HistoryView from './views/HistoryView.vue'
 import FavoritesView from './views/FavoritesView.vue'
 import RequestView from './views/RequestView.vue'
+import PlaylistsView from './views/PlaylistsView.vue'
+import ExploreView from './views/ExploreView.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -13,6 +15,8 @@ const router = createRouter({
     { path: '/history', component: HistoryView },
     { path: '/favorites', component: FavoritesView },
     { path: '/request', component: RequestView },
+    { path: '/playlists', component: PlaylistsView },
+    { path: '/explore', component: ExploreView },
   ],
 })
 

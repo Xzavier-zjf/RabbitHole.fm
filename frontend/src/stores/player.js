@@ -5,6 +5,8 @@ import { loadChannel, getSongData, getDjAudio, recordPlay } from '../api'
 const LOCAL_HISTORY_KEY = 'rabbithole:play-history'
 const LAST_CHANNEL_KEY = 'rabbithole:last-channel-id'
 const PLAYBACK_CONTEXT_KEY = 'rabbithole:playback-context'
+const SMART_CONTINUE_KEY = 'rabbithole:smart-continue'
+const MINI_PLAYER_KEY = 'rabbithole:mini-player'
 
 function readLocalHistory() {
   try {
@@ -45,6 +47,69 @@ function persistLastChannelId(channelId) {
   }
 }
 
+function readSmartContinue() {
+  try {
+    const raw = localStorage.getItem(SMART_CONTINUE_KEY)
+    return raw == null ? true : raw === 'true'
+  } catch {
+    return true
+  }
+}
+
+function persistSmartContinue(value) {
+  try {
+    localStorage.setItem(SMART_CONTINUE_KEY, String(!!value))
+  } catch {
+    // Ignore smart continuation persistence failure.
+  }
+}
+
+function readMiniPlayer() {
+  try {
+    return localStorage.getItem(MINI_PLAYER_KEY) === 'true'
+  } catch {
+    return false
+  }
+}
+
+function persistMiniPlayer(value) {
+  try {
+    localStorage.setItem(MINI_PLAYER_KEY, String(!!value))
+  } catch {
+    // Ignore mini player persistence failure.
+  }
+}
+
+function normalizeArtists(artists) {
+  if (Array.isArray(artists)) return artists
+  if (typeof artists === 'string' && artists.trim()) {
+    return artists.split(/[、/]/).map((name) => name.trim()).filter(Boolean)
+  }
+  return []
+}
+
+function normalizeQueueSong(song) {
+  if (!song || typeof song !== 'object') return null
+  const rawSongId = song.id ?? song.songId
+  if (rawSongId == null || rawSongId === '') return null
+  const numericSongId = Number(rawSongId)
+  if (!Number.isFinite(numericSongId) || numericSongId <= 0) return null
+  return {
+    type: 'song',
+    songId: numericSongId,
+    name: song.name || song.songName || '未命名歌曲',
+    artists: normalizeArtists(song.artists),
+    album: song.album || '',
+    coverUrl: song.coverUrl || '',
+    durationMs: song.durationMs || null,
+    requestId: song.requestId ?? null,
+    requester: song.requester || '',
+    message: song.message || '',
+    songUrl: song.songUrl || '',
+    lyric: song.lyric || '',
+  }
+}
+
 function readPlaybackContext() {
   try {
     const parsed = JSON.parse(sessionStorage.getItem(PLAYBACK_CONTEXT_KEY) || 'null')
@@ -77,6 +142,8 @@ export const usePlayerStore = defineStore('player', () => {
   const isLoading = ref(false)
   const error = ref('')
   const viewState = ref({ showLyrics: false })
+  const smartContinueEnabled = ref(readSmartContinue())
+  const miniPlayerEnabled = ref(readMiniPlayer())
   let activeDjBlobUrl = null
   let refillPending = false
   let lastContextPersistAt = 0
@@ -183,7 +250,7 @@ export const usePlayerStore = defineStore('player', () => {
     persistLastChannelId(channelId)
     try {
       const res = await loadChannel(channelId)
-      queue.value = res.data
+      queue.value = Array.isArray(res.data) ? res.data : []
       if (queue.value.length > 0) {
         const resumeIndex = resolveResumeIndex(queue.value, resumeContext)
         const resumeTime = resumeIndex >= 0 && resumeContext?.channelId === channelId ? resumeContext.currentTime : 0
@@ -216,6 +283,11 @@ export const usePlayerStore = defineStore('player', () => {
     revokeDjBlobUrl()
 
     if (item.type === 'song') {
+      if (!item.songId) {
+        item.broken = true
+        next()
+        return
+      }
       if (!item.songUrl) {
         await fetchSongUrlWithRetry(item.songId)
         if (!item.songUrl) {
@@ -226,6 +298,11 @@ export const usePlayerStore = defineStore('player', () => {
       }
       audio.value.src = item.songUrl
     } else if (item.type === 'dj') {
+      if (!item.djUrl) {
+        item.broken = true
+        next()
+        return
+      }
       item.djSubtitle = item.djSubtitle || ''
       try {
         const res = await getDjAudio(item.djUrl)
@@ -240,6 +317,10 @@ export const usePlayerStore = defineStore('player', () => {
         next()
         return
       }
+    } else {
+      item.broken = true
+      next()
+      return
     }
 
     applyResumeTime(resumeTime)
@@ -282,11 +363,12 @@ export const usePlayerStore = defineStore('player', () => {
     }).catch(() => {})
   }
 
-  async function refillQueue() {
+  async function refillQueue(options = {}) {
+    const { allowRepeat = false } = options
     if (!currentChannelId.value) return
     try {
       const res = await loadChannel(currentChannelId.value)
-      const newItems = res.data || []
+      const newItems = Array.isArray(res.data) ? res.data : []
 
       // Collect IDs of all items already in queue to avoid duplicates
       const existingKeys = new Set(
@@ -300,6 +382,14 @@ export const usePlayerStore = defineStore('player', () => {
 
       if (trulyNew.length > 0) {
         queue.value.push(...trulyNew)
+      } else if (allowRepeat && newItems.length > 0) {
+        const currentKey = queue.value[currentIndex.value]
+          ? `${queue.value[currentIndex.value].type}:${queue.value[currentIndex.value].songId || queue.value[currentIndex.value].djUrl || ''}`
+          : ''
+        const repeatItems = newItems
+          .filter((item) => `${item.type}:${item.songId || item.djUrl || ''}` !== currentKey)
+          .slice(0, 24)
+        queue.value.push(...repeatItems)
       }
     } catch {
       // Silent fail - queue just runs out
@@ -334,21 +424,18 @@ export const usePlayerStore = defineStore('player', () => {
   }
 
   function addToQueue(song) {
-    queue.value.push({
-      type: 'song',
-      songId: song.id,
-      name: song.name,
-      artists: song.artists,
-      album: song.album,
-      coverUrl: song.coverUrl,
-      durationMs: song.durationMs,
-    })
+    const normalized = normalizeQueueSong(song)
+    if (!normalized) return -1
+    queue.value.push(normalized)
+    return queue.value.length - 1
   }
 
   function insertAt(items, position) {
-    const arr = Array.isArray(items) ? items : [items]
-    const idx = Math.min(position, queue.value.length)
+    const arr = (Array.isArray(items) ? items : [items]).filter(Boolean)
+    if (!arr.length) return -1
+    const idx = Math.max(0, Math.min(position, queue.value.length))
     queue.value.splice(idx, 0, ...arr)
+    return idx
   }
 
   function play() {
@@ -373,6 +460,13 @@ export const usePlayerStore = defineStore('player', () => {
     const nextIdx = currentIndex.value + 1
     if (nextIdx < queue.value.length) {
       playItem(nextIdx)
+    } else if (smartContinueEnabled.value && currentChannelId.value) {
+      refillQueue({ allowRepeat: true }).then(() => {
+        const refillNextIdx = currentIndex.value + 1
+        if (refillNextIdx < queue.value.length) {
+          playItem(refillNextIdx)
+        }
+      })
     }
   }
 
@@ -391,7 +485,7 @@ export const usePlayerStore = defineStore('player', () => {
 
   function setVolume(v) {
     if (audio.value) {
-      audio.value.volume = v
+      audio.value.volume = Math.max(0, Math.min(1, Number(v) || 0))
     }
   }
 
@@ -407,6 +501,24 @@ export const usePlayerStore = defineStore('player', () => {
       ...patch,
     }
     persistPlaybackContext(true)
+  }
+
+  function setSmartContinue(value) {
+    smartContinueEnabled.value = !!value
+    persistSmartContinue(smartContinueEnabled.value)
+  }
+
+  function toggleSmartContinue() {
+    setSmartContinue(!smartContinueEnabled.value)
+  }
+
+  function setMiniPlayer(value) {
+    miniPlayerEnabled.value = !!value
+    persistMiniPlayer(miniPlayerEnabled.value)
+  }
+
+  function toggleMiniPlayer() {
+    setMiniPlayer(!miniPlayerEnabled.value)
   }
 
   function resolveResumeIndex(items, resumeContext) {
@@ -434,8 +546,10 @@ export const usePlayerStore = defineStore('player', () => {
   return {
     queue, currentIndex, currentChannelId, isPlaying, currentItem,
     progress, duration, currentTime, audio, isLoading, error,
+    smartContinueEnabled, miniPlayerEnabled,
     buildQueue, addToQueue, insertAt, play, pause, togglePlay, next, prev,
     seek, setVolume, playItem, setCurrentChannelId,
     setPlaybackViewState, getSavedPlaybackContext, getPlaybackViewState,
+    setSmartContinue, toggleSmartContinue, setMiniPlayer, toggleMiniPlayer,
   }
 })

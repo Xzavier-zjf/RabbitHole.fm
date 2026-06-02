@@ -1,102 +1,162 @@
 <template>
   <div class="request-view">
-    <div class="hero">
-      <div class="header">
-        <button class="back-btn" @click="$router.push('/')">← 返回兔子洞</button>
-        <div>
-          <h2>点歌留言</h2>
-          <p class="desc">把你想听的歌和一句话交给 DJ，小糖会替你说出来。</p>
+    <header class="page-head">
+      <button class="back-btn" type="button" @click="$router.push('/')">
+        <ChevronLeft :size="18" />
+        <span>返回播放</span>
+      </button>
+      <div class="page-title-block">
+        <div class="page-kicker">
+          <MessageSquareText :size="16" />
+          <span>Audience Requests</span>
+        </div>
+        <h1>点歌留言</h1>
+        <p>搜索一首歌，写下一句话，加入当前频道的播放队列。</p>
+        <div v-if="roomId" class="room-chip">
+          <Radio :size="15" />
+          <span>房间 {{ roomId }} · 频道 {{ activeChannelId }}</span>
         </div>
       </div>
+    </header>
 
+    <section class="request-search-card">
       <div class="search-wrap">
+        <Search :size="19" />
         <input
           v-model="keyword"
-          placeholder="搜索歌曲..."
+          placeholder="搜索歌曲、歌手或专辑"
           @keydown.enter.prevent="onEnter"
           @compositionstart="onCompStart"
           @compositionend="onCompEnd"
         />
-        <button @click="search" :disabled="searching">{{ searching ? '搜索中...' : '搜索' }}</button>
+        <button class="primary-btn" type="button" @click="search" :disabled="searching">
+          <LoaderCircle v-if="searching" :size="18" class="spin" />
+          <Search v-else :size="18" />
+          <span>{{ searching ? '搜索中' : '搜索' }}</span>
+        </button>
       </div>
-
-      <p v-if="searchError" class="search-err">{{ searchError }}</p>
-    </div>
+      <p v-if="searchError" class="inline-error">{{ searchError }}</p>
+    </section>
 
     <div class="request-layout">
-      <section class="results-card">
-        <div class="section-kicker">Pick A Song</div>
-        <h3>搜索结果</h3>
+      <section class="panel-card results-card">
+        <div class="section-head">
+          <div>
+            <div class="section-kicker">Pick A Song</div>
+            <h2>搜索结果</h2>
+          </div>
+          <span class="count-badge">{{ results.length }}</span>
+        </div>
 
         <div class="results" v-if="results.length">
-          <div class="item" v-for="s in results" :key="s.id">
-            <div class="item-info">
-              <div class="item-name">{{ s.name }}</div>
-              <div class="item-artists">{{ (s.artists || []).join(' / ') }}</div>
-            </div>
-            <button class="pick-btn" @click="pick(s)">选这首</button>
-          </div>
+          <article class="track-row" v-for="s in results" :key="s.id">
+            <img v-if="s.coverUrl" :src="proxyCoverUrl(s.coverUrl)" class="track-cover" referrerpolicy="no-referrer" />
+            <span v-else class="track-cover fallback">
+              <Music :size="18" />
+            </span>
+            <span class="track-copy">
+              <span class="track-title">{{ s.name }}</span>
+              <span class="track-meta">{{ (s.artists || []).join(' / ') || '未知歌手' }}</span>
+            </span>
+            <button class="pick-icon" type="button" @click="pick(s)" aria-label="选择点歌" title="选择点歌">
+              <Plus :size="18" />
+            </button>
+            <button class="pick-icon secondary" type="button" @click="saveSong(s)" aria-label="加入歌单" title="加入歌单">
+              <ListPlus :size="18" />
+            </button>
+          </article>
         </div>
 
         <div class="empty-state" v-else>
-          搜索一首歌，或者试试“陈奕迅”“周杰伦”“宇多田光”。
+          <Music :size="28" />
+          <span>搜索一首歌，或试试“陈奕迅”“周杰伦”“宇多田光”。</span>
         </div>
       </section>
 
-      <section class="draft-card">
-        <div class="section-kicker">Leave A Note</div>
-        <h3>给 DJ 的话</h3>
+      <section class="panel-card draft-card">
+        <div class="section-head">
+          <div>
+            <div class="section-kicker">Leave A Note</div>
+            <h2>给 DJ 的话</h2>
+          </div>
+        </div>
 
         <div class="draft" v-if="pickedSong">
           <div class="picked-info">
-            你点的歌：<strong>{{ pickedSong.name }}</strong>
-            <span>— {{ (pickedSong.artists || []).join(' / ') }}</span>
+            <div class="picked-label">已选择</div>
+            <div class="picked-title">{{ pickedSong.name }}</div>
+            <div class="picked-meta">{{ (pickedSong.artists || []).join(' / ') || '未知歌手' }}</div>
           </div>
           <textarea
             v-model="message"
-            placeholder="想对谁说什么？DJ 会帮你念出来（可选，最多 80 字）"
+            placeholder="想对谁说什么？可选，最多 80 字。"
             maxlength="80"
           />
-          <button class="submit-btn" @click="submitRequest" :disabled="submitting">
-            {{ submitting ? '提交中...' : '提交点歌' }}
-          </button>
-          <p v-if="resultMsg" :class="{ ok: resultOk, err: !resultOk }">{{ resultMsg }}</p>
+          <div class="draft-actions">
+            <button class="ghost-btn" type="button" @click="pickedSong = null">
+              <X :size="18" />
+              <span>取消选择</span>
+            </button>
+            <button class="primary-btn" type="button" @click="submitRequest" :disabled="submitting">
+              <LoaderCircle v-if="submitting" :size="18" class="spin" />
+              <Send v-else :size="18" />
+              <span>{{ submitting ? '提交中' : '提交点歌' }}</span>
+            </button>
+          </div>
+          <p v-if="resultMsg" :class="['result-msg', { ok: resultOk, err: !resultOk }]">{{ resultMsg }}</p>
         </div>
 
         <div class="empty-state" v-else>
-          先从左边选一首歌，再在这里写下你的留言。
+          <MessageSquareText :size="28" />
+          <span>先从搜索结果里选一首歌，再在这里写留言。</span>
         </div>
       </section>
 
-      <section class="draft-card my-requests-card">
-        <div class="section-kicker">My Requests</div>
-        <h3>我的点歌</h3>
+      <section class="panel-card my-requests-card">
+        <div class="section-head">
+          <div>
+            <div class="section-kicker">My Requests</div>
+            <h2>我的点歌</h2>
+          </div>
+          <button v-if="userStore.isLoggedIn" class="icon-btn" type="button" @click="fetchMyRequests({ reset: true })" title="刷新我的点歌" aria-label="刷新我的点歌">
+            <RefreshCw :size="17" />
+          </button>
+        </div>
 
         <div v-if="!userStore.isLoggedIn" class="empty-state">
-          登录后可以查看自己的点歌状态，也能在播出前取消。
+          <Clock :size="28" />
+          <span>登录后可以查看自己的点歌状态，也能在播出前取消。</span>
         </div>
 
         <div v-else-if="myRequests.length" class="my-requests">
-          <div class="my-request-item" v-for="item in myRequests" :key="item.id">
+          <article class="my-request-item" v-for="item in myRequests" :key="item.id">
             <div class="my-request-copy">
               <div class="my-request-title">{{ item.songName || '未命名歌曲' }}</div>
-              <div class="my-request-meta">{{ item.artists || '未知歌手' }} · {{ requestStatusLabel(item.status) }}</div>
+              <div class="my-request-meta">
+                {{ item.artists || '未知歌手' }} · {{ requestStatusLabel(item.status) }}
+              </div>
               <div v-if="item.message" class="my-request-message">“{{ item.message }}”</div>
             </div>
             <button
               v-if="item.status === 0"
-              class="pick-btn"
+              class="danger-btn"
+              type="button"
               :disabled="cancellingId === item.id"
               @click="cancelMyRequest(item.id)"
             >
-              {{ cancellingId === item.id ? '取消中...' : '取消点歌' }}
+              <LoaderCircle v-if="cancellingId === item.id" :size="17" class="spin" />
+              <Trash2 v-else :size="17" />
+              <span>{{ cancellingId === item.id ? '取消中' : '取消' }}</span>
             </button>
-          </div>
-          <button v-if="canLoadMoreRequests" class="more-btn" @click="loadMoreRequests">加载更多</button>
+          </article>
+          <button v-if="canLoadMoreRequests" class="more-btn" type="button" @click="loadMoreRequests">
+            加载更多
+          </button>
         </div>
 
         <div v-else class="empty-state">
-          你还没有留下新的点歌。
+          <Clock :size="28" />
+          <span>你还没有留下新的点歌。</span>
         </div>
       </section>
     </div>
@@ -105,14 +165,35 @@
 
 <script setup>
 import { computed, ref, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
+import {
+  ChevronLeft,
+  Clock,
+  ListPlus,
+  LoaderCircle,
+  MessageSquareText,
+  Music,
+  Plus,
+  Radio,
+  RefreshCw,
+  Search,
+  Send,
+  Trash2,
+  X,
+} from '@lucide/vue'
 import { usePlayerStore } from '../stores/player'
 import { useUserStore } from '../stores/user'
 import { useRequestFeedStore } from '../stores/request-feed'
-import { searchSongs, submitSongRequest, getMyRequests, cancelRequest } from '../api'
+import { usePlaylistsStore } from '../stores/playlists'
+import { useNoticeStore } from '../stores/notice'
+import { searchSongs, submitSongRequest, getMyRequests, cancelRequest, proxyCoverUrl } from '../api'
 
+const route = useRoute()
 const playerStore = usePlayerStore()
 const userStore = useUserStore()
 const requestFeed = useRequestFeedStore()
+const playlists = usePlaylistsStore()
+const notice = useNoticeStore()
 
 const keyword = ref('')
 const results = ref([])
@@ -130,8 +211,23 @@ const requestPage = ref(1)
 const requestPageSize = ref(10)
 const hasMoreRequests = ref(false)
 const canLoadMoreRequests = computed(() => hasMoreRequests.value)
+const routeChannelId = computed(() => {
+  const raw = Array.isArray(route.query.channelId) ? route.query.channelId[0] : route.query.channelId
+  const parsed = Number(raw)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+})
+const roomId = computed(() => {
+  const raw = Array.isArray(route.query.room) ? route.query.room[0] : route.query.room
+  return typeof raw === 'string' ? raw : ''
+})
+const activeChannelId = computed(() => routeChannelId.value || playerStore.currentChannelId || 32953014)
 
-onMounted(fetchMyRequests)
+onMounted(() => {
+  if (routeChannelId.value) {
+    playerStore.setCurrentChannelId(routeChannelId.value)
+  }
+  fetchMyRequests()
+})
 
 function onCompStart() { isComposing.value = true }
 function onCompEnd() { isComposing.value = false }
@@ -163,7 +259,7 @@ function pick(song) {
 
 async function submitRequest() {
   if (!pickedSong.value) return
-  const channelId = playerStore.currentChannelId || 32953014
+  const channelId = activeChannelId.value
   const tempRequestId = `temp-${Date.now()}`
   const optimisticRequest = {
     id: tempRequestId,
@@ -202,6 +298,9 @@ async function submitRequest() {
       message: message.value,
     })
     const data = res.data
+    if (data?.code && data.code !== 0) {
+      throw new Error(data.msg || '点歌失败')
+    }
     if (data.djItem) {
       playerStore.insertAt(data.djItem, playerStore.currentIndex + 3)
     }
@@ -224,7 +323,7 @@ async function submitRequest() {
     } else {
       requestFeed.removeRequest(channelId, tempRequestId)
     }
-    resultMsg.value = '点歌成功，右侧 Other Rabbits 队列已经能看到你的留言。'
+    resultMsg.value = '点歌成功，队列已经同步更新。'
     resultOk.value = true
     pickedSong.value = null
     message.value = ''
@@ -236,11 +335,21 @@ async function submitRequest() {
       myRequests.value = myRequests.value.filter((item) => item.id !== tempRequestId)
     }
     requestFeed.removeRequest(channelId, tempRequestId)
-    resultMsg.value = e.response?.data?.msg || '点歌失败'
+    resultMsg.value = e.response?.data?.msg || e.message || '点歌失败'
     resultOk.value = false
   } finally {
     submitting.value = false
   }
+}
+
+function saveSong(song) {
+  const added = playlists.addTrackToFirst(song)
+  notice.show({
+    type: added ? 'success' : 'info',
+    title: 'Playlist',
+    message: added ? '已加入我的歌单。' : '这首歌已经在歌单里了。',
+    duration: 1800,
+  })
 }
 
 async function fetchMyRequests(options = {}) {
@@ -271,7 +380,7 @@ async function fetchMyRequests(options = {}) {
 async function cancelMyRequest(id) {
   const existing = myRequests.value.find((item) => item.id === id)
   const previousStatus = existing?.status
-  const channelId = existing?.channelId || playerStore.currentChannelId || 32953014
+  const channelId = existing?.channelId || activeChannelId.value
   const previousQueueItem = requestFeed.getQueue(channelId).find((item) => item.requestId === id)
   if (existing) {
     myRequests.value = myRequests.value.map((item) =>
@@ -322,144 +431,290 @@ function requestStatusLabel(status) {
 <style scoped>
 .request-view {
   min-height: 100vh;
-  padding: 28px;
+  padding: 24px;
   color: var(--text-primary);
+  overflow-y: auto;
 }
 
-.hero {
-  max-width: 980px;
-  margin: 0 auto 22px;
+.page-head,
+.request-search-card,
+.request-layout {
+  width: min(1180px, 100%);
+  margin-inline: auto;
 }
 
-.header {
+.page-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 18px;
   margin-bottom: 18px;
 }
 
 .back-btn,
-.search-wrap button,
-.pick-btn,
-.submit-btn {
-  border: none;
-  border-radius: 999px;
+.icon-btn,
+.ghost-btn,
+.primary-btn,
+.danger-btn,
+.more-btn {
+  min-height: var(--control-height);
+  border-radius: var(--radius-md);
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 800;
+}
+
+.back-btn,
+.icon-btn,
+.ghost-btn,
+.more-btn {
+  border: 1px solid var(--divider);
+  background: color-mix(in srgb, var(--bg-card) 82%, transparent);
+  color: var(--text-secondary);
 }
 
 .back-btn {
-  border: 1px solid var(--divider);
-  background: color-mix(in srgb, var(--bg-card) 90%, transparent);
-  color: var(--text-secondary);
-  padding: 10px 16px;
+  padding: 0 14px;
+  flex-shrink: 0;
 }
 
-.desc {
+.back-btn:hover,
+.icon-btn:hover,
+.ghost-btn:hover,
+.more-btn:hover {
+  color: var(--text-primary);
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--divider));
+  background: var(--bg-card-hover);
+}
+
+.page-title-block {
+  min-width: 0;
+}
+
+.page-kicker,
+.section-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent);
+  font-size: 0.74rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.page-title-block h1 {
+  margin-top: 8px;
+  font-size: clamp(2rem, 4vw, 4rem);
+  line-height: 1;
+}
+
+.page-title-block p {
+  margin-top: 10px;
   color: var(--text-secondary);
-  margin-top: 6px;
+  line-height: 1.7;
+}
+
+.room-chip {
+  width: fit-content;
+  max-width: 100%;
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 10px;
+  padding: 0 10px;
+  border: 1px solid color-mix(in srgb, var(--blue) 28%, var(--divider));
+  border-radius: var(--radius-pill);
+  color: var(--blue);
+  background: color-mix(in srgb, var(--blue) 10%, transparent);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.request-search-card {
+  padding: 14px;
+  border: 1px solid var(--divider);
+  border-radius: var(--radius-xl);
+  background: color-mix(in srgb, var(--bg-card) 82%, transparent);
+  box-shadow: var(--shadow-soft);
 }
 
 .search-wrap {
   display: flex;
+  align-items: center;
   gap: 10px;
+  min-height: 52px;
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-lg);
+  background: var(--input-bg);
+  padding: 0 10px 0 14px;
+  color: var(--text-tertiary);
 }
 
-.search-wrap input,
-textarea {
-  background: var(--input-bg);
-  border: 1px solid var(--input-border);
-  color: var(--text-primary);
-  outline: none;
+.search-wrap:focus-within {
+  border-color: color-mix(in srgb, var(--accent) 46%, var(--input-border));
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 .search-wrap input {
   flex: 1;
-  border-radius: 999px;
-  padding: 12px 16px;
+  min-width: 0;
+  height: 48px;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text-primary);
 }
 
-.search-wrap button,
-.submit-btn {
-  background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 60%, var(--mystic)));
-  color: #fff7ef;
-  padding: 12px 18px;
+.search-wrap input::placeholder,
+textarea::placeholder {
+  color: var(--text-tertiary);
 }
 
-.search-wrap button:disabled,
-.submit-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+.primary-btn {
+  border: none;
+  padding: 0 16px;
+  background: var(--accent);
+  color: #07100c;
 }
 
-.search-err,
-.err {
+.primary-btn:disabled,
+.danger-btn:disabled {
+  opacity: 0.62;
+}
+
+.inline-error,
+.result-msg.err {
   color: var(--highlight);
+}
+
+.inline-error {
   margin-top: 10px;
+  font-size: 0.86rem;
 }
 
 .request-layout {
-  max-width: 980px;
-  margin: 0 auto;
+  margin-top: 18px;
   display: grid;
-  grid-template-columns: 1.1fr 0.9fr;
-  gap: 18px;
+  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+  gap: 16px;
 }
 
-.results-card,
-.draft-card {
-  padding: 20px;
-  border-radius: var(--radius-xl);
+.panel-card {
+  min-width: 0;
+  padding: 18px;
   border: 1px solid var(--divider);
-  background: color-mix(in srgb, var(--bg-card) 90%, transparent);
+  border-radius: var(--radius-xl);
+  background: color-mix(in srgb, var(--bg-card) 84%, transparent);
   box-shadow: var(--shadow-soft);
 }
 
-.section-kicker {
-  color: var(--mystic);
-  font-size: 0.72rem;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  margin-bottom: 8px;
-}
-
-.results-card h3,
-.draft-card h3 {
-  font-family: var(--font-display);
-  font-size: 1.4rem;
+.section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
   margin-bottom: 14px;
 }
 
-.results {
-  display: grid;
-  gap: 10px;
+.section-head h2 {
+  margin-top: 4px;
+  font-size: 1.28rem;
 }
 
-.item {
+.count-badge {
+  min-width: 32px;
+  min-height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+.results,
+.my-requests {
+  display: grid;
+  gap: 9px;
+}
+
+.track-row {
+  width: 100%;
+  min-height: 62px;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 14px;
-  background: color-mix(in srgb, var(--bg-elevated) 80%, transparent);
+  padding: 9px 10px;
   border: 1px solid var(--divider);
   border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--bg-elevated) 58%, transparent);
+  color: inherit;
+  text-align: left;
 }
 
-.item-name {
-  font-size: 0.96rem;
-  font-weight: 600;
+.track-row:hover {
+  background: var(--bg-card-hover);
+  border-color: color-mix(in srgb, var(--accent) 26%, var(--divider));
 }
 
-.item-artists {
-  color: var(--text-secondary);
-  font-size: 0.8rem;
-  margin-top: 4px;
+.track-cover {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  object-fit: cover;
+  flex-shrink: 0;
 }
 
-.pick-btn {
-  margin-left: auto;
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
+.track-cover.fallback {
+  display: grid;
+  place-items: center;
   color: var(--accent);
-  padding: 8px 14px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.track-copy {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: 3px;
+}
+
+.track-title,
+.track-meta {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.track-title {
+  color: var(--text-primary);
+  font-weight: 850;
+}
+
+.track-meta {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
+.pick-icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 10px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  cursor: pointer;
+}
+
+.pick-icon.secondary {
+  color: var(--blue);
+  background: color-mix(in srgb, var(--blue) 10%, transparent);
 }
 
 .draft {
@@ -468,49 +723,81 @@ textarea {
 }
 
 .picked-info {
-  color: var(--text-secondary);
-  line-height: 1.7;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--divider));
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
-.picked-info strong {
+.picked-label {
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.picked-title {
+  margin-top: 6px;
   color: var(--text-primary);
+  font-weight: 850;
+}
+
+.picked-meta {
+  margin-top: 4px;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
 }
 
 textarea {
   width: 100%;
-  min-height: 120px;
-  border-radius: 18px;
-  padding: 14px;
+  min-height: 138px;
   resize: vertical;
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-lg);
+  background: var(--input-bg);
+  color: var(--text-primary);
+  padding: 14px;
+  outline: none;
+  line-height: 1.6;
 }
 
-.ok {
+textarea:focus {
+  border-color: color-mix(in srgb, var(--accent) 46%, var(--input-border));
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.draft-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ghost-btn {
+  padding: 0 14px;
+}
+
+.result-msg {
+  font-size: 0.86rem;
+  line-height: 1.6;
+}
+
+.result-msg.ok {
   color: var(--success);
-}
-
-.empty-state {
-  color: var(--text-tertiary);
-  line-height: 1.8;
-  padding: 24px 4px;
 }
 
 .my-requests-card {
   grid-column: 1 / -1;
 }
 
-.my-requests {
-  display: grid;
-  gap: 10px;
-}
-
 .my-request-item {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 14px;
-  border-radius: var(--radius-md);
+  padding: 13px 14px;
   border: 1px solid var(--divider);
-  background: color-mix(in srgb, var(--bg-elevated) 80%, transparent);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--bg-elevated) 58%, transparent);
 }
 
 .my-request-copy {
@@ -518,38 +805,89 @@ textarea {
   flex: 1;
 }
 
+.my-request-title,
+.my-request-meta,
+.my-request-message {
+  overflow-wrap: anywhere;
+}
+
 .my-request-title {
   color: var(--text-primary);
-  font-size: 0.96rem;
-  font-weight: 600;
+  font-weight: 850;
 }
 
 .my-request-meta,
 .my-request-message {
+  margin-top: 4px;
   color: var(--text-secondary);
   font-size: 0.8rem;
-  margin-top: 4px;
+}
+
+.danger-btn {
+  border: 1px solid color-mix(in srgb, var(--coral) 28%, var(--divider));
+  padding: 0 12px;
+  color: var(--coral);
+  background: color-mix(in srgb, var(--coral) 9%, transparent);
 }
 
 .more-btn {
   justify-self: center;
-  border: 1px solid var(--divider);
-  background: color-mix(in srgb, var(--bg-card) 90%, transparent);
-  color: var(--text-secondary);
-  border-radius: 999px;
-  padding: 10px 16px;
-  cursor: pointer;
+  padding: 0 16px;
+}
+
+.empty-state {
+  min-height: 180px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 12px;
+  color: var(--text-tertiary);
+  text-align: center;
+  line-height: 1.7;
+}
+
+.spin {
+  animation: spin 850ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (max-width: 900px) {
+  .request-view {
+    padding: 16px;
+  }
+
+  .page-head {
+    flex-direction: column;
+  }
+
   .request-layout {
     grid-template-columns: 1fr;
   }
 
-  .header,
+  .my-requests-card {
+    grid-column: auto;
+  }
+
   .search-wrap {
+    flex-wrap: wrap;
+    padding: 10px;
+  }
+
+  .search-wrap input,
+  .primary-btn {
+    min-width: 100%;
+  }
+}
+
+@media (max-width: 560px) {
+  .my-request-item {
+    align-items: flex-start;
     flex-direction: column;
-    align-items: stretch;
   }
 }
 </style>

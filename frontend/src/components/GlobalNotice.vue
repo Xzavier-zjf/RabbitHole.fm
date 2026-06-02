@@ -1,17 +1,26 @@
 <template>
   <transition name="notice-fade">
     <div v-if="notice.visible" class="global-notice" :class="notice.type">
+      <div class="notice-icon" aria-hidden="true">
+        <AlertCircle v-if="notice.type === 'error'" :size="18" />
+        <TriangleAlert v-else-if="notice.type === 'warning'" :size="18" />
+        <CheckCircle2 v-else-if="notice.type === 'success'" :size="18" />
+        <Info v-else :size="18" />
+      </div>
       <div class="notice-copy">
         <div v-if="notice.title" class="notice-eyebrow">{{ notice.title }}</div>
         <div class="notice-title">{{ notice.message }}</div>
         <div v-if="notice.requestId" class="notice-meta">Request ID: {{ notice.requestId }}</div>
       </div>
-      <button class="notice-close" @click="notice.clear()">×</button>
+      <button class="notice-close" type="button" @click="notice.clear()" aria-label="关闭通知" title="关闭通知">
+        <X :size="17" />
+      </button>
     </div>
   </transition>
 </template>
 
 <script setup>
+import { AlertCircle, CheckCircle2, Info, TriangleAlert, X } from '@lucide/vue'
 import { useNoticeStore } from '../stores/notice'
 
 const notice = useNoticeStore()
@@ -27,11 +36,12 @@ const notice = useNoticeStore()
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  padding: 14px 16px;
-  border-radius: 18px;
+  padding: 14px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--divider);
-  background: color-mix(in srgb, var(--bg-elevated) 94%, transparent);
+  background: color-mix(in srgb, var(--bg-elevated) 96%, transparent);
   box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(18px);
 }
 
 .global-notice.error {
@@ -47,7 +57,33 @@ const notice = useNoticeStore()
 }
 
 .global-notice.info {
-  border-color: color-mix(in srgb, var(--mystic) 28%, var(--divider));
+  border-color: color-mix(in srgb, var(--blue) 28%, var(--divider));
+}
+
+.notice-icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  color: var(--blue);
+  background: color-mix(in srgb, var(--blue) 11%, transparent);
+}
+
+.global-notice.error .notice-icon {
+  color: var(--highlight);
+  background: color-mix(in srgb, var(--highlight) 11%, transparent);
+}
+
+.global-notice.warning .notice-icon {
+  color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 12%, transparent);
+}
+
+.global-notice.success .notice-icon {
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 11%, transparent);
 }
 
 .notice-copy {
@@ -56,9 +92,9 @@ const notice = useNoticeStore()
 }
 
 .notice-eyebrow {
-  color: var(--mystic);
+  color: var(--accent);
   font-size: 0.72rem;
-  letter-spacing: 0.12em;
+  font-weight: 850;
   text-transform: uppercase;
   margin-bottom: 5px;
 }
@@ -78,11 +114,19 @@ const notice = useNoticeStore()
 
 .notice-close {
   border: none;
-  background: transparent;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--text-primary) 7%, transparent);
   color: var(--text-secondary);
   cursor: pointer;
-  font-size: 1.1rem;
-  line-height: 1;
+}
+
+.notice-close:hover {
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--text-primary) 11%, transparent);
 }
 
 .notice-fade-enter-active,
@@ -94,5 +138,37 @@ const notice = useNoticeStore()
 .notice-fade-leave-to {
   opacity: 0;
   transform: translateY(-8px);
+}
+
+@media (max-width: 560px) {
+  .global-notice {
+    top: 10px;
+    right: 10px;
+    left: 10px;
+    max-width: none;
+    padding: 10px;
+    gap: 10px;
+    border-radius: var(--radius-lg);
+  }
+
+  .notice-icon,
+  .notice-close {
+    width: 30px;
+    height: 30px;
+  }
+
+  .notice-eyebrow {
+    margin-bottom: 3px;
+    font-size: 0.66rem;
+  }
+
+  .notice-title {
+    font-size: 0.82rem;
+    line-height: 1.45;
+  }
+
+  .notice-meta {
+    display: none;
+  }
 }
 </style>

@@ -1,26 +1,26 @@
 <template>
   <div class="lyrics-shell" :class="{ restoring: isRestoring }">
-    <div class="lyrics-backdrop">
-      <div class="lyrics-backdrop-orbit orbit-a"></div>
-      <div class="lyrics-backdrop-orbit orbit-b"></div>
-    </div>
+    <div class="lyrics-bg" :style="coverGhostStyle"></div>
 
     <div class="lyrics-stage">
-      <div class="lyrics-head">
-        <div v-if="currentCover" class="lyrics-cover-ghost" :style="coverGhostStyle"></div>
-        <div class="lyrics-kicker">Now Drifting</div>
-        <div class="lyrics-song-block">
+      <header class="lyrics-head">
+        <div class="lyrics-kicker">
+          <AudioLines :size="16" />
+          <span>Live Lyrics</span>
+        </div>
+        <div class="lyrics-title-block">
           <div class="lyrics-song-name">{{ currentName }}</div>
           <div class="lyrics-song-meta">{{ currentArtists }}</div>
         </div>
-        <div class="lyrics-caption">歌词会沿着当前播放位置慢慢浮上来。</div>
-      </div>
+      </header>
 
       <div class="lyrics-panel" ref="panelRef">
         <div v-if="!lyricLines.length" class="no-lyric-card">
-          <div class="no-lyric-mark">RH</div>
-          <div class="no-lyric-title">这首歌暂时没有歌词</div>
-          <div class="no-lyric-copy">像兔子洞里的一小段回声，但旋律还在继续向前。</div>
+          <div class="no-lyric-mark">
+            <Captions :size="28" />
+          </div>
+          <div class="no-lyric-title">暂无歌词</div>
+          <div class="no-lyric-copy">这首歌暂时没有可同步的歌词，音乐仍会继续播放。</div>
         </div>
 
         <div
@@ -45,7 +45,9 @@
 
 <script setup>
 import { ref, watch, computed, nextTick, onMounted, onBeforeUnmount } from 'vue'
+import { AudioLines, Captions } from '@lucide/vue'
 import { usePlayerStore } from '../stores/player'
+import { proxyCoverUrl } from '../api'
 
 const player = usePlayerStore()
 const panelRef = ref(null)
@@ -53,7 +55,7 @@ const activeEl = ref(null)
 const isRestoring = ref(true)
 let restoreTimer = null
 
-const currentName = computed(() => player.currentItem?.name || '正在坠入新的旋律')
+const currentName = computed(() => player.currentItem?.name || '正在播放')
 const currentArtists = computed(() => {
   const artists = player.currentItem?.artists || []
   return artists.length ? artists.join(' / ') : 'RabbitHole.fm'
@@ -62,7 +64,7 @@ const currentCover = computed(() => player.currentItem?.coverUrl || '')
 const coverGhostStyle = computed(() => {
   if (!currentCover.value) return undefined
   return {
-    backgroundImage: 'linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 22%, transparent), color-mix(in srgb, var(--bg-card) 78%, transparent)), url(' + JSON.stringify(currentCover.value).slice(1, -1) + ')',
+    backgroundImage: `url("${proxyCoverUrl(currentCover.value)}")`,
   }
 })
 
@@ -107,7 +109,7 @@ const activeSweepStyle = computed(() => {
   const end = next?.time ?? start + 4
   const span = Math.max(0.8, end - start)
   const ratio = Math.max(0, Math.min(1, (player.currentTime - start) / span))
-  const pct = 16 + ratio * 84
+  const pct = 12 + ratio * 88
   return {
     '--lyric-sweep': pct.toFixed(2) + '%',
   }
@@ -118,8 +120,8 @@ function lineStyle(index) {
   const abs = Math.abs(distance)
   const depth = Math.min(abs, 4)
   const translateY = distance < 0 ? depth * -5 : depth * 7
-  const scale = index === activeLine.value ? 1 : Math.max(0.94, 1 - depth * 0.015)
-  const blur = abs >= 3 ? Math.min(3, (abs - 2) * 0.8) : 0
+  const scale = index === activeLine.value ? 1 : Math.max(0.95, 1 - depth * 0.012)
+  const blur = abs >= 4 ? Math.min(2.5, (abs - 3) * 0.75) : 0
   return {
     ...(index === activeLine.value ? activeSweepStyle.value || {} : {}),
     '--line-offset-y': translateY + 'px',
@@ -196,47 +198,20 @@ function parseLrc(lrc) {
   position: relative;
   height: 100%;
   overflow: hidden;
-  border-radius: inherit;
   background:
-    radial-gradient(circle at 50% 18%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 44%),
-    radial-gradient(circle at 82% 24%, color-mix(in srgb, var(--mystic) 10%, transparent), transparent 32%),
-    linear-gradient(180deg, color-mix(in srgb, var(--bg-elevated) 92%, transparent), color-mix(in srgb, var(--bg-card) 96%, transparent));
+    radial-gradient(circle at 50% 10%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 38%),
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-elevated) 84%, transparent), color-mix(in srgb, var(--bg-card) 96%, transparent));
 }
 
-.lyrics-shell.restoring {
-  filter: saturate(0.92);
-}
-
-.lyrics-backdrop {
+.lyrics-bg {
   position: absolute;
-  inset: 0;
-  pointer-events: none;
-  overflow: hidden;
-}
-
-.lyrics-backdrop-orbit {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(6px);
-}
-
-.orbit-a {
-  width: 340px;
-  height: 340px;
-  top: -120px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 16%, transparent), transparent 68%);
-  opacity: 0.82;
-}
-
-.orbit-b {
-  width: 280px;
-  height: 280px;
-  right: -70px;
-  bottom: 10%;
-  background: radial-gradient(circle, color-mix(in srgb, var(--mystic) 14%, transparent), transparent 70%);
-  opacity: 0.56;
+  inset: -20%;
+  background-position: center;
+  background-size: cover;
+  opacity: 0.12;
+  filter: blur(46px) saturate(1.22);
+  transform: scale(1.05);
+  mask-image: radial-gradient(circle at 50% 24%, black, transparent 62%);
 }
 
 .lyrics-stage {
@@ -248,102 +223,58 @@ function parseLrc(lrc) {
 }
 
 .lyrics-head {
-  position: relative;
-  width: 100%;
-  min-width: 0;
-  max-width: 100%;
-  box-sizing: border-box;
-  padding: 24px 28px 12px;
+  padding: 22px 28px 12px;
+  display: grid;
+  justify-items: center;
+  gap: 12px;
   text-align: center;
-  overflow: hidden;
-}
-
-.lyrics-cover-ghost {
-  position: absolute;
-  top: -18px;
-  left: 50%;
-  width: 240px;
-  height: 128px;
-  border-radius: 28px;
-  transform: translateX(-50%) perspective(700px) rotateX(16deg) scale(1.04);
-  background-position: center;
-  background-size: cover;
-  opacity: 0.2;
-  filter: blur(16px) saturate(1.08);
-  pointer-events: none;
-}
-
-.lyrics-head > * {
-  position: relative;
-  z-index: 1;
 }
 
 .lyrics-kicker {
-  color: var(--mystic);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent);
   font-size: 0.74rem;
-  letter-spacing: 0.2em;
+  font-weight: 850;
   text-transform: uppercase;
 }
 
-.lyrics-song-block {
-  width: min(100%, 520px);
-  min-width: 0;
-  max-width: min(100%, 520px);
-  box-sizing: border-box;
-  margin: 12px auto 0;
-  padding: 16px 22px 14px;
-  border-radius: 24px;
+.lyrics-title-block {
+  width: min(100%, 620px);
+  padding: 14px 18px;
+  border: 1px solid var(--divider);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--bg-elevated) 68%, transparent);
+  backdrop-filter: blur(14px);
+}
+
+.lyrics-song-name,
+.lyrics-song-meta {
+  white-space: nowrap;
   overflow: hidden;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-elevated) 86%, transparent), color-mix(in srgb, var(--bg-card) 78%, transparent));
-  border: 1px solid color-mix(in srgb, var(--divider) 84%, transparent);
-  box-shadow:
-    0 14px 36px color-mix(in srgb, var(--bg-primary) 12%, transparent),
-    inset 0 1px 0 color-mix(in srgb, var(--accent) 8%, transparent);
+  text-overflow: ellipsis;
 }
 
 .lyrics-song-name {
-  display: block;
-  max-width: 100%;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: transparent;
-  font-family: var(--font-display);
-  font-size: clamp(1.3rem, 2vw, 1.8rem);
-  line-height: 1.08;
-  letter-spacing: 0.01em;
-  background-image: linear-gradient(90deg, color-mix(in srgb, var(--accent) 82%, white 16%), color-mix(in srgb, var(--text-primary) 94%, white 6%) 55%, color-mix(in srgb, var(--mystic) 58%, white 10%));
-  background-clip: text;
-  -webkit-background-clip: text;
-  text-shadow: 0 0 18px color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--text-primary);
+  font-size: clamp(1.2rem, 2vw, 1.85rem);
+  line-height: 1.15;
+  font-weight: 850;
 }
 
 .lyrics-song-meta {
-  max-width: 100%;
-  min-width: 0;
-  margin-top: 7px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: color-mix(in srgb, var(--text-secondary) 90%, white 6%);
+  margin-top: 6px;
+  color: var(--text-secondary);
   font-size: 0.86rem;
 }
 
-.lyrics-caption {
-  margin-top: 10px;
-  color: color-mix(in srgb, var(--text-secondary) 92%, white 4%);
-  font-size: 0.82rem;
-}
-
 .lyrics-panel {
-  position: relative;
   height: 100%;
   overflow-y: auto;
-  padding: 12px 28px 64px;
+  padding: 12px 28px 74px;
   mask-image: linear-gradient(transparent 0%, black 10%, black 88%, transparent 100%);
-  opacity: 1;
-  transition: opacity 360ms ease, transform 360ms ease;
+  transition: opacity 320ms ease, transform 320ms ease;
 }
 
 .lyrics-shell.restoring .lyrics-panel {
@@ -351,101 +282,75 @@ function parseLrc(lrc) {
   transform: translateY(4px);
 }
 
-.lyrics-panel::before,
-.lyrics-panel::after {
-  content: '';
-  position: sticky;
-  top: 0;
-  width: 72px;
-  height: 100%;
-  pointer-events: none;
-  z-index: 2;
-}
-
-.lyrics-panel::before {
-  float: left;
-  margin-left: -28px;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--bg-card) 90%, transparent), transparent 86%);
-}
-
-.lyrics-panel::after {
-  float: right;
-  margin-right: -28px;
-  background: linear-gradient(270deg, color-mix(in srgb, var(--bg-card) 90%, transparent), transparent 86%);
-}
-
 .no-lyric-card {
-  width: min(100%, 520px);
+  width: min(100%, 480px);
   margin: 12vh auto 0;
   padding: 28px 24px;
-  border-radius: 28px;
-  border: 1px solid color-mix(in srgb, var(--divider) 90%, transparent);
-  background: color-mix(in srgb, var(--bg-elevated) 84%, transparent);
-  box-shadow: 0 20px 56px color-mix(in srgb, var(--bg-primary) 16%, transparent);
+  border: 1px solid var(--divider);
+  border-radius: var(--radius-xl);
+  background: color-mix(in srgb, var(--bg-elevated) 78%, transparent);
+  box-shadow: var(--shadow-soft);
   text-align: center;
 }
 
 .no-lyric-mark {
-  width: 64px;
-  height: 64px;
+  width: 62px;
+  height: 62px;
   margin: 0 auto 16px;
   display: grid;
   place-items: center;
-  border-radius: 50%;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 24%, transparent), color-mix(in srgb, var(--mystic) 18%, transparent));
-  color: var(--text-primary);
-  font-family: var(--font-display);
-  font-size: 1.2rem;
+  border-radius: 16px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
 .no-lyric-title {
   color: var(--text-primary);
-  font-size: 1.1rem;
-  font-weight: 600;
+  font-size: 1.08rem;
+  font-weight: 850;
 }
 
 .no-lyric-copy {
   margin-top: 8px;
   color: var(--text-secondary);
   font-size: 0.9rem;
-  line-height: 1.8;
+  line-height: 1.75;
 }
 
 .lyric-line {
-  width: min(100%, 760px);
+  width: min(100%, 820px);
   margin: 0 auto;
-  padding: 16px 22px;
-  border-radius: 28px;
-  color: color-mix(in srgb, var(--text-tertiary) 88%, transparent);
+  padding: 14px 20px;
+  border-radius: var(--radius-lg);
+  color: var(--text-tertiary);
   text-align: center;
   opacity: 0.42;
   transform: translateY(var(--line-offset-y, 0px)) scale(var(--line-scale, 0.97));
   filter: blur(var(--line-blur, 0px));
   transition:
-    color 260ms cubic-bezier(0.4, 0, 0.2, 1),
-    transform 360ms cubic-bezier(0.22, 1, 0.36, 1),
-    filter 320ms ease,
-    text-shadow 320ms cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 260ms ease,
-    background 260ms ease,
-    box-shadow 300ms ease;
+    color 240ms ease,
+    transform 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 260ms ease,
+    opacity 220ms ease,
+    background 240ms ease,
+    box-shadow 260ms ease;
 }
 
 .lyric-line + .lyric-line {
-  margin-top: 6px;
+  margin-top: 4px;
 }
 
 .lyric-line.nearby {
-  opacity: 0.68;
+  opacity: 0.72;
 }
 
 .lyric-line.distant {
-  opacity: 0.24;
+  opacity: 0.22;
 }
 
 .line-main {
   font-family: var(--font-lyric);
-  font-size: clamp(1.02rem, 1.2vw, 1.14rem);
+  font-size: clamp(1rem, 1.2vw, 1.16rem);
   line-height: 1.95;
 }
 
@@ -453,55 +358,35 @@ function parseLrc(lrc) {
   --lyric-sweep: 18%;
   color: var(--text-primary);
   opacity: 1;
-  transform: translateY(var(--line-offset-y, -2px)) scale(var(--line-scale, 1));
-  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-elevated) 92%, transparent), color-mix(in srgb, var(--bg-card) 82%, transparent));
-  border: 1px solid color-mix(in srgb, var(--accent) 14%, transparent);
-  box-shadow:
-    0 18px 48px color-mix(in srgb, var(--bg-primary) 14%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--mystic) 6%, transparent),
-    inset 0 1px 0 color-mix(in srgb, var(--text-primary) 5%, transparent);
+  background: color-mix(in srgb, var(--bg-elevated) 78%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--divider));
+  box-shadow: 0 20px 54px color-mix(in srgb, var(--bg-primary) 20%, transparent);
 }
 
 .lyric-line.active .line-main {
-  font-size: clamp(1.7rem, 2.5vw, 2.35rem);
-  font-weight: 700;
-  letter-spacing: 0.01em;
+  font-size: clamp(1.58rem, 2.7vw, 2.55rem);
+  font-weight: 850;
   color: transparent;
   background-image: linear-gradient(
     90deg,
-    color-mix(in srgb, var(--accent) 76%, white 20%) 0%,
-    color-mix(in srgb, var(--text-primary) 92%, white 8%) var(--lyric-sweep),
-    color-mix(in srgb, var(--text-primary) 84%, transparent) 100%
+    var(--accent) 0%,
+    color-mix(in srgb, var(--text-primary) 94%, white 4%) var(--lyric-sweep),
+    color-mix(in srgb, var(--text-primary) 72%, transparent) 100%
   );
   background-clip: text;
   -webkit-background-clip: text;
-  text-shadow: 0 0 14px color-mix(in srgb, var(--accent) 24%, transparent);
-}
-
-.lyric-line.active::after {
-  content: '';
-  display: block;
-  width: 88px;
-  height: 3px;
-  margin: 10px auto 0;
-  border-radius: 999px;
-  background: linear-gradient(90deg, transparent, var(--accent), color-mix(in srgb, var(--mystic) 40%, var(--accent)), transparent);
-}
-
-.lyric-line.settling {
-  animation: lyric-settle 520ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .translation {
   margin-top: 6px;
   font-family: var(--font-ui);
   font-size: 0.86rem;
-  line-height: 1.75;
+  line-height: 1.7;
   color: var(--text-secondary);
 }
 
-.lyric-line.active .translation {
-  color: color-mix(in srgb, var(--text-secondary) 88%, white 6%);
+.lyric-line.settling {
+  animation: lyric-settle 520ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @keyframes lyric-settle {
@@ -512,48 +397,30 @@ function parseLrc(lrc) {
 
   100% {
     opacity: 1;
-    transform: translateY(-2px) scale(1);
+    transform: translateY(0) scale(1);
   }
 }
 
 @media (max-width: 880px) {
   .lyrics-head {
-    padding: 18px 18px 8px;
+    padding: 18px 16px 8px;
   }
 
-  .lyrics-cover-ghost {
-    width: 190px;
-    height: 108px;
-    top: -10px;
-  }
-
-  .lyrics-song-block {
-    width: 100%;
-    max-width: 100%;
-    padding: 14px 14px 12px;
-  }
-
-  .lyrics-song-name {
-    font-size: clamp(1.1rem, 5vw, 1.45rem);
+  .lyrics-title-block {
+    padding: 12px 14px;
   }
 
   .lyrics-panel {
-    padding: 8px 16px 54px;
-  }
-
-  .lyrics-panel::before,
-  .lyrics-panel::after {
-    width: 28px;
+    padding: 8px 14px 58px;
   }
 
   .lyric-line {
     width: 100%;
-    padding: 14px 14px;
-    border-radius: 22px;
+    padding: 12px 12px;
   }
 
   .lyric-line.active .line-main {
-    font-size: clamp(1.4rem, 7vw, 1.9rem);
+    font-size: clamp(1.35rem, 7vw, 1.95rem);
   }
 }
 </style>

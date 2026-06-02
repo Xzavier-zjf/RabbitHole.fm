@@ -1,8 +1,17 @@
 import axios from 'axios'
 import { useNoticeStore } from '../stores/notice'
-import router from '../router'
 import { getCurrentAppPath, savePostLoginRedirect } from '../utils/auth-redirect'
-import { usePlayerStore } from '../stores/player'
+
+const LAST_CHANNEL_KEY = 'rabbithole:last-channel-id'
+
+function readLastChannelId() {
+  try {
+    const parsed = Number(localStorage.getItem(LAST_CHANNEL_KEY))
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+  } catch {
+    return null
+  }
+}
 
 function buildNoticePayload(err) {
   const status = err.response?.status
@@ -70,11 +79,11 @@ api.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401 || err.response?.status === 403) {
-      const currentPath = router.currentRoute.value?.fullPath || getCurrentAppPath()
-      const player = usePlayerStore()
+      const currentPath = getCurrentAppPath()
+      const channelId = readLastChannelId()
       const redirect = currentPath.startsWith('/login')
-        ? { path: '/', channelId: player.currentChannelId || null }
-        : savePostLoginRedirect(currentPath, player.currentChannelId)
+        ? { path: '/', channelId }
+        : savePostLoginRedirect(currentPath, channelId)
       const notice = useNoticeStore()
       notice.show({
         type: 'warning',
@@ -91,7 +100,9 @@ api.interceptors.response.use(
         if (redirect.channelId) {
           query.channelId = String(redirect.channelId)
         }
-        router.push({ path: '/login', query })
+        const params = new URLSearchParams(query)
+        const suffix = params.toString() ? `?${params.toString()}` : ''
+        window.location.assign(`/login${suffix}`)
       }, 250)
       return Promise.reject(err)
     }

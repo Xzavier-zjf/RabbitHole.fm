@@ -3,42 +3,53 @@
     <div class="modal-card">
       <div class="modal-header">
         <div>
-          <div class="modal-kicker">Rabbit Identity</div>
+          <div class="modal-kicker">
+            <UserRound :size="15" />
+            <span>Profile</span>
+          </div>
           <h3>我的资料</h3>
         </div>
-        <button class="close-btn" @click="$emit('close')">×</button>
+        <button class="close-btn" type="button" @click="$emit('close')" aria-label="关闭" title="关闭">
+          <X :size="18" />
+        </button>
       </div>
 
       <div class="modal-body">
         <div class="avatar-section">
           <div class="avatar-preview" :class="{ 'has-img': previewUrl }">
             <img v-if="previewUrl" :src="previewUrl" />
-            <span v-else>{{ (nickname || '?')[0] }}</span>
+            <span v-else>{{ (nickname || username || '?')[0] }}</span>
           </div>
           <div class="avatar-actions">
             <label class="upload-btn">
+              <Upload :size="17" />
+              <span>{{ previewUrl ? '更换头像' : '上传头像' }}</span>
               <input type="file" accept="image/*" @change="onFileChange" hidden />
-              {{ previewUrl ? '更换头像' : '上传头像' }}
             </label>
-            <button v-if="previewUrl" class="remove-avatar-btn" @click="removeAvatar">移除</button>
+            <button v-if="previewUrl" class="remove-avatar-btn" type="button" @click="removeAvatar">
+              <Trash2 :size="17" />
+              <span>移除</span>
+            </button>
           </div>
         </div>
 
-        <div class="field">
-          <label>昵称</label>
-          <input v-model="nickname" placeholder="输入昵称..." maxlength="32" @keyup.enter="save" />
-        </div>
+        <label class="field">
+          <span>昵称</span>
+          <input v-model="nickname" placeholder="输入昵称" maxlength="32" @keyup.enter="save" />
+        </label>
 
-        <div class="field">
-          <label>用户名</label>
+        <label class="field">
+          <span>用户名</span>
           <input :value="username" disabled />
-        </div>
+        </label>
       </div>
 
       <div class="modal-footer">
-        <button class="cancel-btn" @click="$emit('close')">取消</button>
-        <button class="save-btn" @click="save" :disabled="saving">
-          {{ saving ? '保存中...' : '保存' }}
+        <button class="cancel-btn" type="button" @click="$emit('close')">取消</button>
+        <button class="save-btn" type="button" @click="save" :disabled="saving">
+          <LoaderCircle v-if="saving" :size="17" class="spin" />
+          <Save v-else :size="17" />
+          <span>{{ saving ? '保存中' : '保存' }}</span>
         </button>
       </div>
 
@@ -48,7 +59,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { LoaderCircle, Save, Trash2, Upload, UserRound, X } from '@lucide/vue'
 import { useUserStore } from '../stores/user'
 import { updateProfile, uploadAvatar } from '../api'
 
@@ -62,6 +74,7 @@ const saving = ref(false)
 const msg = ref('')
 const ok = ref(true)
 const selectedFile = ref(null)
+let objectPreviewUrl = ''
 
 onMounted(() => {
   const p = user.profile
@@ -75,11 +88,14 @@ onMounted(() => {
 function onFileChange(e) {
   const file = e.target.files[0]
   if (!file) return
+  revokeObjectPreview()
   selectedFile.value = file
-  previewUrl.value = URL.createObjectURL(file)
+  objectPreviewUrl = URL.createObjectURL(file)
+  previewUrl.value = objectPreviewUrl
 }
 
 function removeAvatar() {
+  revokeObjectPreview()
   selectedFile.value = null
   previewUrl.value = ''
 }
@@ -95,6 +111,9 @@ async function save() {
       formData.append('file', selectedFile.value)
       const uploadRes = await uploadAvatar(formData)
       avatarUrl = uploadRes.data.avatarUrl
+      revokeObjectPreview()
+      previewUrl.value = avatarUrl
+      selectedFile.value = null
     } else if (!previewUrl.value) {
       avatarUrl = ''
     }
@@ -114,29 +133,39 @@ async function save() {
     saving.value = false
   }
 }
+
+function revokeObjectPreview() {
+  if (!objectPreviewUrl) return
+  URL.revokeObjectURL(objectPreviewUrl)
+  objectPreviewUrl = ''
+}
+
+onBeforeUnmount(() => {
+  revokeObjectPreview()
+})
 </script>
 
 <style scoped>
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(8, 7, 11, 0.55);
-  backdrop-filter: blur(10px);
+  z-index: 300;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 300;
   padding: 18px;
+  background: var(--bg-overlay);
+  backdrop-filter: blur(12px);
 }
 
 .modal-card {
-  background: color-mix(in srgb, var(--bg-elevated) 96%, transparent);
-  border: 1px solid var(--divider);
-  border-radius: 28px;
-  width: 420px;
+  width: 430px;
   max-width: 100%;
   padding: 24px;
-  box-shadow: var(--shadow-soft);
+  border: 1px solid var(--divider);
+  border-radius: var(--radius-xl);
+  background: color-mix(in srgb, var(--bg-elevated) 96%, transparent);
+  box-shadow: var(--shadow-panel);
 }
 
 .modal-header {
@@ -148,59 +177,74 @@ async function save() {
 }
 
 .modal-kicker {
-  color: var(--mystic);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent);
   font-size: 0.72rem;
-  letter-spacing: 0.16em;
+  font-weight: 850;
   text-transform: uppercase;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .modal-header h3 {
   margin: 0;
-  font-size: 1.5rem;
   color: var(--text-primary);
-  font-family: var(--font-display);
+  font-size: 1.55rem;
+  line-height: 1.1;
 }
 
 .close-btn,
 .cancel-btn,
 .save-btn,
-.remove-avatar-btn {
+.remove-avatar-btn,
+.upload-btn {
+  min-height: var(--control-height);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: var(--radius-md);
   cursor: pointer;
+  font-weight: 800;
 }
 
 .close-btn {
-  background: none;
-  border: none;
-  color: var(--text-tertiary);
-  font-size: 1.5rem;
-  line-height: 1;
+  width: 40px;
+  min-width: 40px;
+  border: 1px solid var(--divider);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+}
+
+.close-btn:hover {
+  color: var(--text-primary);
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--divider));
 }
 
 .avatar-section {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 18px;
   margin-bottom: 20px;
 }
 
 .avatar-preview {
-  width: 76px;
-  height: 76px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent), var(--mystic));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.8rem;
-  font-weight: 700;
-  color: #fff;
-  flex-shrink: 0;
+  width: 78px;
+  height: 78px;
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
   overflow: hidden;
+  flex-shrink: 0;
+  color: #07100c;
+  font-size: 1.8rem;
+  font-weight: 900;
+  background: linear-gradient(135deg, var(--accent), var(--blue));
 }
 
 .avatar-preview.has-img {
-  background: color-mix(in srgb, var(--bg-card) 90%, transparent);
+  background: var(--bg-card);
 }
 
 .avatar-preview img {
@@ -211,61 +255,56 @@ async function save() {
 
 .avatar-actions {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
-.upload-btn,
-.remove-avatar-btn,
-.cancel-btn,
-.save-btn {
-  border-radius: 999px;
-  padding: 10px 16px;
-  font-size: 0.84rem;
-}
-
 .upload-btn {
-  display: inline-block;
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  padding: 0 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--divider));
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
   color: var(--accent);
-  border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
-  text-align: center;
 }
 
 .remove-avatar-btn,
 .cancel-btn {
-  background: color-mix(in srgb, var(--bg-card) 90%, transparent);
+  padding: 0 14px;
   border: 1px solid var(--divider);
+  background: var(--bg-card);
   color: var(--text-secondary);
 }
 
-.save-btn {
-  background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 60%, var(--mystic)));
-  color: #fff7ef;
-  border: none;
+.remove-avatar-btn {
+  color: var(--coral);
+  border-color: color-mix(in srgb, var(--coral) 28%, var(--divider));
 }
 
 .field {
+  display: grid;
+  gap: 7px;
   margin-bottom: 14px;
 }
 
-.field label {
-  display: block;
+.field span {
   color: var(--text-secondary);
   font-size: 0.78rem;
-  margin-bottom: 6px;
+  font-weight: 800;
 }
 
 .field input {
   width: 100%;
-  background: var(--input-bg);
+  min-height: 46px;
   border: 1px solid var(--input-border);
-  border-radius: 16px;
-  padding: 11px 13px;
+  border-radius: var(--radius-md);
+  background: var(--input-bg);
   color: var(--text-primary);
-  font-size: 0.92rem;
+  padding: 0 12px;
   outline: none;
-  box-sizing: border-box;
+}
+
+.field input:focus {
+  border-color: color-mix(in srgb, var(--accent) 46%, var(--input-border));
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 .field input:disabled {
@@ -277,16 +316,50 @@ async function save() {
   display: flex;
   gap: 10px;
   justify-content: flex-end;
-  margin-top: 10px;
+  margin-top: 14px;
+}
+
+.save-btn {
+  padding: 0 16px;
+  border: none;
+  background: var(--accent);
+  color: #07100c;
+}
+
+.save-btn:disabled {
+  opacity: 0.62;
+  cursor: not-allowed;
 }
 
 .ok,
 .err {
-  font-size: 0.84rem;
-  margin-top: 10px;
+  margin-top: 12px;
   text-align: center;
+  font-size: 0.84rem;
+  line-height: 1.6;
 }
 
 .ok { color: var(--success); }
 .err { color: var(--highlight); }
+
+.spin {
+  animation: spin 850ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 520px) {
+  .modal-card {
+    padding: 20px;
+  }
+
+  .avatar-section {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
 </style>

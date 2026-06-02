@@ -9,7 +9,7 @@ function resolveInitialTheme() {
   if (saved === 'dark' || saved === 'light') {
     return saved
   }
-  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+  return 'dark'
 }
 
 function applyTheme(value) {
