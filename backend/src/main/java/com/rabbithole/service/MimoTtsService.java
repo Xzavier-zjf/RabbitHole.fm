@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.Base64;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -38,6 +39,10 @@ public class MimoTtsService {
     private String format;
 
     public byte[] synthesize(String styleHint, String text) throws IOException {
+        return synthesize(styleHint, text, 0);
+    }
+
+    public byte[] synthesize(String styleHint, String text, long timeoutMs) throws IOException {
         String cacheKey = "mimo:tts:" + DigestUtils.md5Hex(model + voice + styleHint + text);
         String cached = redis.opsForValue().get(cacheKey);
         if (cached != null) {
@@ -61,7 +66,11 @@ public class MimoTtsService {
                         MediaType.parse("application/json")))
                 .build();
 
-        try (Response resp = http.newCall(req).execute()) {
+        OkHttpClient client = timeoutMs > 0
+                ? http.newBuilder().callTimeout(timeoutMs, TimeUnit.MILLISECONDS).build()
+                : http;
+
+        try (Response resp = client.newCall(req).execute()) {
             if (!resp.isSuccessful()) {
                 throw new IOException("MiMo TTS error: " + resp.code() + " - " +
                         resp.body().string());

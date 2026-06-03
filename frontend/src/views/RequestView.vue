@@ -35,6 +35,7 @@
           <span>{{ searching ? '搜索中' : '搜索' }}</span>
         </button>
       </div>
+      <MusicSourceSelect class="request-source-select" />
       <p v-if="searchError" class="inline-error">{{ searchError }}</p>
     </section>
 
@@ -79,7 +80,7 @@
 
         <div class="empty-state" v-else>
           <Music :size="28" />
-          <span>搜索一首歌，或试试“陈奕迅”“周杰伦”“宇多田光”。</span>
+          <span>{{ resultsEmptyText }}</span>
         </div>
       </section>
 
@@ -201,6 +202,8 @@ import { usePlaylistsStore } from '../stores/playlists'
 import { useNoticeStore } from '../stores/notice'
 import { searchSongs, submitSongRequest, getMyRequests, cancelRequest, proxyCoverUrl } from '../api'
 import { musicSource, musicSourceLabel, requestPayload, sourcePayload, sourceSongId } from '../utils/music-source'
+import { useMusicSourceStore } from '../stores/music-source'
+import MusicSourceSelect from '../components/MusicSourceSelect.vue'
 
 const route = useRoute()
 const playerStore = usePlayerStore()
@@ -208,6 +211,7 @@ const userStore = useUserStore()
 const requestFeed = useRequestFeedStore()
 const playlists = usePlaylistsStore()
 const notice = useNoticeStore()
+const sourceStore = useMusicSourceStore()
 
 const keyword = ref('')
 const results = ref([])
@@ -235,6 +239,11 @@ const roomId = computed(() => {
   return typeof raw === 'string' ? raw : ''
 })
 const activeChannelId = computed(() => routeChannelId.value || playerStore.currentChannelId || 32953014)
+const resultsEmptyText = computed(() => {
+  if (!keyword.value.trim()) return '搜索一首歌，或试试“陈奕迅”“周杰伦”“宇多田光”。'
+  if (sourceStore.selectedSource !== 'all') return '当前音乐源暂无结果，可切换到全部来源再试。'
+  return '未找到相关歌曲，可以换个关键词再试。'
+})
 
 onMounted(() => {
   if (routeChannelId.value) {
@@ -255,12 +264,14 @@ async function search() {
   searchError.value = ''
   searching.value = true
   try {
-    const res = await searchSongs(keyword.value.trim(), 15)
+    const res = await searchSongs(keyword.value.trim(), 15, sourceStore.selectedSource)
     results.value = res.data || []
-    if (results.value.length === 0) searchError.value = '未找到相关歌曲'
+    if (results.value.length === 0) searchError.value = resultsEmptyText.value
   } catch {
     results.value = []
-    searchError.value = '搜索失败，请检查网络连接'
+    searchError.value = sourceStore.selectedSource === 'all'
+      ? '搜索失败，请检查网络连接'
+      : '当前音乐源不可用，可切换到全部来源'
   } finally {
     searching.value = false
   }
@@ -572,11 +583,17 @@ function requestStatusLabel(status) {
 }
 
 .request-search-card {
+  display: grid;
+  gap: 10px;
   padding: 14px;
   border: 1px solid var(--divider);
   border-radius: var(--radius-xl);
   background: color-mix(in srgb, var(--bg-card) 82%, transparent);
   box-shadow: var(--shadow-soft);
+}
+
+.request-source-select {
+  width: min(100%, 360px);
 }
 
 .search-wrap {
@@ -948,6 +965,10 @@ textarea:focus {
   .search-wrap input,
   .primary-btn {
     min-width: 100%;
+  }
+
+  .request-source-select {
+    width: 100%;
   }
 }
 

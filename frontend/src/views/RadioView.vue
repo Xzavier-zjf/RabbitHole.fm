@@ -1,5 +1,11 @@
 <template>
-  <div class="radio-view" @keydown="onKeydown" tabindex="0" ref="rootEl">
+  <div
+    class="radio-view"
+    :style="radioViewStyle"
+    @keydown="onKeydown"
+    tabindex="0"
+    ref="rootEl"
+  >
     <aside class="left-rail">
       <ChannelList
         :width="sidebarWidth"
@@ -103,7 +109,7 @@
                 <div class="np-copy">
                   <div class="np-kicker">
                     <span class="live-dot"></span>
-                    <span>{{ isDj ? 'DJ Interlude' : 'Now Playing' }}</span>
+                    <span>{{ isDj ? '点歌口播' : 'Now Playing' }}</span>
                     <span v-if="sourceLabel(player.currentItem)" class="source-badge">{{ sourceLabel(player.currentItem) }}</span>
                   </div>
                   <h1>{{ player.currentItem.name }}</h1>
@@ -115,7 +121,7 @@
                   <div class="np-actions">
                     <button class="primary-btn" @click="toggleLyrics">
                       <Rows3 :size="18" />
-                      <span>{{ isDj ? '查看字幕' : '查看歌词' }}</span>
+                      <span>{{ isDj ? '查看口播' : '查看歌词' }}</span>
                     </button>
                     <button
                       v-if="player.currentItem.songId"
@@ -336,6 +342,9 @@ const themeToggleLabel = computed(() => {
 })
 
 const sidebarWidth = ref(292)
+const radioViewStyle = computed(() => ({
+  '--left-rail-width': sidebarWidth.value + 'px',
+}))
 const MIN_WIDTH = 240
 const MAX_WIDTH = 384
 const rootEl = ref(null)
@@ -381,6 +390,12 @@ watch(() => player.currentChannelId, () => {
 watch(() => player.currentItem?.coverUrl, () => {
   mainCoverFailed.value = false
   miniCoverFailed.value = false
+})
+
+watch(() => player.djUnavailable, (value) => {
+  if (value) {
+    showTopStatus('口播暂不可用，已继续播放下一首音乐。', 'return', 2600, '点歌口播')
+  }
 })
 
 const isFavorited = computed(() => {
@@ -739,13 +754,15 @@ function onMiniCoverError() {
   flex: 1;
   min-width: 0;
   height: 100vh;
-  padding: 16px 16px calc(var(--player-height) + 24px);
+  padding: 16px 16px calc(var(--player-height) + 36px);
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
 
 .top-bar {
+  position: relative;
+  z-index: 420;
   min-height: 66px;
   display: flex;
   align-items: center;
@@ -950,6 +967,8 @@ function onMiniCoverError() {
 }
 
 .content-layout {
+  position: relative;
+  z-index: 1;
   flex: 1;
   min-height: 0;
   display: grid;
@@ -1022,8 +1041,8 @@ function onMiniCoverError() {
   display: grid;
   grid-template-columns: minmax(260px, 0.82fr) minmax(320px, 1fr);
   align-items: center;
-  gap: clamp(24px, 4vw, 58px);
-  padding: clamp(28px, 4vw, 58px);
+  gap: clamp(22px, 3.5vw, 48px);
+  padding: clamp(24px, 3.4vw, 48px);
   overflow: hidden;
 }
 
@@ -1088,7 +1107,7 @@ function onMiniCoverError() {
 .np-copy {
   min-width: 0;
   display: grid;
-  gap: 14px;
+  gap: 12px;
 }
 
 .np-kicker {
@@ -1132,15 +1151,17 @@ function onMiniCoverError() {
 
 .np-copy h1 {
   max-width: 820px;
-  max-height: min(48vh, 430px);
+  max-height: min(38vh, 330px);
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 5;
+  -webkit-line-clamp: 4;
   overflow: hidden;
-  font-size: clamp(2.45rem, 4.9vw, 5.4rem);
-  line-height: 1.02;
+  font-size: clamp(2.25rem, 4.2vw, 4.65rem);
+  line-height: 1.04;
   letter-spacing: 0;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
 }
 
 .np-artist {
@@ -1430,6 +1451,10 @@ function onMiniCoverError() {
   .now-playing-stage {
     grid-template-columns: minmax(230px, 0.78fr) minmax(280px, 1fr);
   }
+
+  .np-copy h1 {
+    font-size: clamp(2.15rem, 4vw, 4.25rem);
+  }
 }
 
 @media (max-width: 1200px) {
@@ -1482,7 +1507,7 @@ function onMiniCoverError() {
   }
 
   .main-area {
-    padding: 12px 12px calc(var(--player-height) + 38px);
+    padding: 12px 12px calc(var(--player-height) + 48px);
   }
 
   .mobile-channel-strip {
@@ -1500,7 +1525,14 @@ function onMiniCoverError() {
 
 @media (max-width: 520px) {
   .top-actions {
+    flex-wrap: wrap;
+    justify-content: flex-start;
     gap: 8px;
+  }
+
+  .top-actions .search-bar {
+    flex: 0 0 100%;
+    width: 100%;
   }
 
   .now-playing-stage {

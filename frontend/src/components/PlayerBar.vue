@@ -143,7 +143,7 @@ const favIds = ref(new Set())
 const coverFailed = ref(false)
 
 const showCoverImage = computed(() => !!player.currentItem?.coverUrl && !coverFailed.value)
-const itemTypeLabel = computed(() => player.currentItem?.type === 'dj' ? 'DJ 口播' : 'RabbitHole.fm')
+const itemTypeLabel = computed(() => player.currentItem?.type === 'dj' ? '点歌口播' : 'RabbitHole.fm')
 const isFavorited = computed(() => {
   return player.currentItem?.songId ? favIds.value.has(musicKey(player.currentItem)) : false
 })
@@ -254,7 +254,7 @@ function hideCover() {
 <style scoped>
 .player-bar {
   position: fixed;
-  left: 16px;
+  left: calc(var(--left-rail-width, 0px) + 22px);
   right: 16px;
   bottom: 14px;
   min-height: var(--player-height);
@@ -454,6 +454,13 @@ function hideCover() {
 
   .player-actions {
     justify-content: flex-end;
+  }
+}
+
+@media (max-width: 880px) {
+  .player-bar {
+    left: 10px;
+    right: 10px;
   }
 }
 

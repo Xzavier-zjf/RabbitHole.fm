@@ -119,7 +119,8 @@ export const logout = () => api.post('/user/logout')
 export const getMe = () => api.get('/user/me')
 
 // Music
-export const searchSongs = (keywords, limit = 30) => api.get('/music/search', { params: { keywords, limit } })
+export const searchSongs = (keywords, limit = 30, source = 'all') =>
+  api.get('/music/search', { params: { keywords, limit, source } })
 export const getSongDetail = (id) => api.get(`/music/song/${id}`)
 export const getMusicApiStatus = () => api.get('/music/status')
 
@@ -128,7 +129,11 @@ export const loadChannel = (playlistId) => api.get(`/radio/channel/${playlistId}
 export const getSongData = (id) => api.get(`/radio/song/${id}`)
 export const getDjAudioUrl = (prevId, nextId) =>
   `/api/radio/dj?prevId=${prevId ?? ''}&nextId=${nextId}`
-export const getDjAudio = (url) => api.get(url.replace(/^\/api/, ''), { responseType: 'blob' })
+export const getDjAudio = (url, options = {}) => api.get(url.replace(/^\/api/, ''), {
+  responseType: 'blob',
+  timeout: options.timeout || 2500,
+  validateStatus: (status) => (status >= 200 && status < 300) || status === 204,
+})
 export const popNext = (channelId) => api.post('/radio/next', null, { params: { channelId } })
 
 // Favorites

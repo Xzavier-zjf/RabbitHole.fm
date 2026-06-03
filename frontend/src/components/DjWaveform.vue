@@ -13,7 +13,7 @@
     <div class="subtitle-track" ref="trackRef">
       <div v-if="!subtitleLines.length" class="no-subtitle">
         <Captions :size="26" />
-        <span>正在生成口播字幕...</span>
+        <span>{{ fallbackSubtitleText }}</span>
       </div>
       <div
         v-for="(line, i) in subtitleLines"
@@ -39,6 +39,11 @@ const subtitleLines = computed(() => {
   const text = normalizeSubtitle(player.currentItem?.djSubtitle || player.currentItem?.message || '')
   if (!text) return []
   return splitSubtitle(text)
+})
+
+const fallbackSubtitleText = computed(() => {
+  if (player.djUnavailable) return '口播暂不可用，已继续播放'
+  return player.currentItem?.name || '暂无口播字幕'
 })
 
 const activeLine = computed(() => {

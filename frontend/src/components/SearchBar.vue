@@ -1,32 +1,35 @@
 <template>
   <div ref="rootRef" class="search-bar" @focusout="onFocusOut">
-    <div class="search-input-wrap">
-      <Search :size="18" class="search-icon" />
-      <input
-        ref="inputRef"
-        v-model="keywords"
-        placeholder="搜索歌曲、歌手或专辑"
-        role="combobox"
-        aria-autocomplete="list"
-        :aria-expanded="results.length > 0"
-        aria-controls="search-results"
-        :aria-activedescendant="activeResultId"
-        @keydown="onSearchKeydown"
-        @compositionstart="isComposing = true"
-        @compositionend="isComposing = false"
-        @input="onInput"
-        @focus="onFocus"
-      />
-      <button
-        v-if="keywords"
-        class="clear-btn"
-        type="button"
-        @click="clear"
-        aria-label="清空搜索"
-        title="清空搜索"
-      >
-        <X :size="16" />
-      </button>
+    <div class="search-shell">
+      <div class="search-input-wrap">
+        <Search :size="18" class="search-icon" />
+        <input
+          ref="inputRef"
+          v-model="keywords"
+          placeholder="搜索歌曲、歌手或专辑"
+          role="combobox"
+          aria-autocomplete="list"
+          :aria-expanded="results.length > 0"
+          aria-controls="search-results"
+          :aria-activedescendant="activeResultId"
+          @keydown="onSearchKeydown"
+          @compositionstart="isComposing = true"
+          @compositionend="isComposing = false"
+          @input="onInput"
+          @focus="onFocus"
+        />
+        <button
+          v-if="keywords"
+          class="clear-btn"
+          type="button"
+          @click="clear"
+          aria-label="清空搜索"
+          title="清空搜索"
+        >
+          <X :size="16" />
+        </button>
+      </div>
+      <MusicSourceSelect />
     </div>
 
     <div v-if="results.length" id="search-results" class="search-results" role="listbox">
@@ -68,6 +71,8 @@
 import { computed, ref } from 'vue'
 import { Music, PlayCircle, Search, X } from '@lucide/vue'
 import { searchSongs, proxyCoverUrl } from '../api'
+import { useMusicSourceStore } from '../stores/music-source'
+import MusicSourceSelect from './MusicSourceSelect.vue'
 
 const emit = defineEmits(['play'])
 const rootRef = ref(null)
@@ -76,6 +81,7 @@ const keywords = ref('')
 const results = ref([])
 const activeIndex = ref(-1)
 const isComposing = ref(false)
+const sourceStore = useMusicSourceStore()
 let debounceTimer = null
 const activeResultId = computed(() => {
   return activeIndex.value >= 0 && results.value[activeIndex.value]
@@ -137,7 +143,7 @@ async function doSearch() {
     return
   }
   try {
-    const res = await searchSongs(keywords.value.trim(), 8)
+    const res = await searchSongs(keywords.value.trim(), 8, sourceStore.selectedSource)
     results.value = res.data || []
     activeIndex.value = results.value.length ? 0 : -1
   } catch {
@@ -185,8 +191,16 @@ function sourceLabel(song) {
 <style scoped>
 .search-bar {
   position: relative;
-  width: min(100%, 520px);
+  z-index: 520;
+  width: min(100%, 680px);
   flex: 1;
+}
+
+.search-shell {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(232px, auto);
+  align-items: center;
+  gap: 8px;
 }
 
 .search-input-wrap {
@@ -251,14 +265,14 @@ function sourceLabel(song) {
   top: calc(100% + 10px);
   left: 0;
   right: 0;
-  z-index: 220;
+  z-index: 900;
   padding: 8px;
   border: 1px solid var(--divider);
   border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--bg-elevated) 98%, transparent);
   box-shadow: var(--shadow-panel);
   backdrop-filter: blur(18px);
-  max-height: 420px;
+  max-height: min(420px, calc(100vh - 190px));
   overflow-y: auto;
 }
 
@@ -384,6 +398,14 @@ function sourceLabel(song) {
   .search-bar {
     width: 100%;
     max-width: none;
+  }
+
+  .search-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .search-results {
+    max-height: min(360px, calc(100vh - 250px));
   }
 }
 </style>

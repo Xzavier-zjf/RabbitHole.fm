@@ -43,6 +43,12 @@ mimo:
 radio:
   default-channel: 19723756
   dj-trigger-seconds: 5
+  dj:
+    enabled: true
+    auto-insert: false
+    request-only: true
+    frontend-timeout-ms: 2500
+    tts-timeout-ms: 1800
 
 http:
   client:

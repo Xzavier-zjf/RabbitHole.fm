@@ -150,6 +150,8 @@ export const usePlayerStore = defineStore('player', () => {
   const currentTime = ref(0)
   const isLoading = ref(false)
   const error = ref('')
+  const skippingDj = ref(false)
+  const djUnavailable = ref(false)
   const viewState = ref({ showLyrics: false })
   const smartContinueEnabled = ref(readSmartContinue())
   const miniPlayerEnabled = ref(readMiniPlayer())
@@ -320,7 +322,12 @@ export const usePlayerStore = defineStore('player', () => {
       }
       item.djSubtitle = item.djSubtitle || ''
       try {
-        const res = await getDjAudio(item.djUrl)
+        skippingDj.value = true
+        const res = await getDjAudio(item.djUrl, { timeout: 2500 })
+        if (res.status === 204 || !res.data || res.data.size === 0) {
+          skipDjItem(item, '口播暂不可用，已继续播放')
+          return
+        }
         const subtitleBase64 = res.headers['x-dj-subtitle-base64']
         if (subtitleBase64) {
           item.djSubtitle = decodeBase64Utf8(subtitleBase64)
@@ -328,9 +335,10 @@ export const usePlayerStore = defineStore('player', () => {
         activeDjBlobUrl = URL.createObjectURL(res.data)
         audio.value.src = activeDjBlobUrl
       } catch {
-        item.broken = true
-        next()
+        skipDjItem(item, '口播响应较慢，已继续播放')
         return
+      } finally {
+        skippingDj.value = false
       }
     } else {
       item.broken = true
@@ -344,6 +352,22 @@ export const usePlayerStore = defineStore('player', () => {
     recordHistory(item)
     preloadNextSong()
     persistPlaybackContext(true)
+  }
+
+  function skipDjItem(item, message = '口播暂不可用，已继续播放') {
+    if (item) {
+      item.broken = true
+      item.skipped = true
+    }
+    djUnavailable.value = true
+    error.value = message
+    window.setTimeout(() => {
+      if (error.value === message) {
+        error.value = ''
+      }
+      djUnavailable.value = false
+    }, 2600)
+    next()
   }
 
   async function fetchSongUrlWithRetry(songId) {
@@ -576,7 +600,7 @@ export const usePlayerStore = defineStore('player', () => {
 
   return {
     queue, currentIndex, currentChannelId, isPlaying, currentItem,
-    progress, duration, currentTime, audio, isLoading, error,
+    progress, duration, currentTime, audio, isLoading, error, skippingDj, djUnavailable,
     smartContinueEnabled, miniPlayerEnabled,
     buildQueue, addToQueue, insertAt, play, pause, togglePlay, next, prev,
     seek, setVolume, playItem, setCurrentChannelId,

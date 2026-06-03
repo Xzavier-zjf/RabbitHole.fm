@@ -66,6 +66,7 @@
           <span>{{ searching ? '搜索中' : '搜索' }}</span>
         </button>
       </form>
+      <MusicSourceSelect class="explore-source-select" />
 
       <div v-if="results.length" class="results">
         <article class="track-row" v-for="song in results" :key="`${song.source || 'netease'}-${song.id}`">
@@ -118,11 +119,14 @@ import { proxyCoverUrl, searchSongs } from '../api'
 import { usePlayerStore } from '../stores/player'
 import { usePlaylistsStore } from '../stores/playlists'
 import { useNoticeStore } from '../stores/notice'
+import { useMusicSourceStore } from '../stores/music-source'
+import MusicSourceSelect from '../components/MusicSourceSelect.vue'
 
 const router = useRouter()
 const player = usePlayerStore()
 const playlists = usePlaylistsStore()
 const notice = useNoticeStore()
+const sourceStore = useMusicSourceStore()
 
 const keyword = ref('')
 const results = ref([])
@@ -138,6 +142,9 @@ const channels = [
 ]
 
 const emptyText = computed(() => {
+  if (hasSearched.value && sourceStore.selectedSource !== 'all') {
+    return '当前音乐源暂无结果，可切换到全部来源再试。'
+  }
   return hasSearched.value ? '没有找到结果，换个关键词试试。' : '选择一个快捷词，或搜索你想听的方向。'
 })
 
@@ -155,7 +162,7 @@ async function search() {
   searching.value = true
   hasSearched.value = true
   try {
-    const res = await searchSongs(keyword.value.trim(), 12)
+    const res = await searchSongs(keyword.value.trim(), 12, sourceStore.selectedSource)
     results.value = res.data || []
   } catch {
     results.value = []
@@ -418,6 +425,11 @@ function sourceLabel(song) {
   color: var(--text-tertiary);
 }
 
+.explore-source-select {
+  width: min(100%, 360px);
+  margin-top: 10px;
+}
+
 .search-row:focus-within {
   border-color: color-mix(in srgb, var(--accent) 46%, var(--input-border));
   box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 10%, transparent);
@@ -561,6 +573,10 @@ function sourceLabel(song) {
   .search-row input,
   .primary-btn {
     min-width: 100%;
+  }
+
+  .explore-source-select {
+    width: 100%;
   }
 }
 </style>

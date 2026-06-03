@@ -125,11 +125,6 @@
           <span>{{ apiOnline ? '音乐源已连接' : '音乐源未连接' }}</span>
         </div>
 
-        <button class="dj-test-btn" type="button" @click="testDjAudio" :disabled="testingDj">
-          <Mic2 :size="16" />
-          <span>{{ testingDj ? '测试中...' : djTestOk ? 'DJ 口播正常' : '测试 DJ 口播' }}</span>
-        </button>
-        <p v-if="djTestErr" class="dj-test-err">{{ djTestErr }}</p>
       </div>
     </section>
 
@@ -151,7 +146,6 @@ import {
   ListMusic,
   LogOut,
   MessageSquareText,
-  Mic2,
   Radio,
   Rocket,
   Sparkles,
@@ -177,10 +171,6 @@ const customId = ref('')
 const showUserMenu = ref(false)
 const showProfileEdit = ref(false)
 const apiOnline = ref(false)
-const testingDj = ref(false)
-const djTestOk = ref(false)
-const djTestErr = ref('')
-let testAudio = null
 
 onMounted(checkApiStatus)
 
@@ -197,44 +187,6 @@ async function checkApiStatus() {
   } catch {
     apiOnline.value = false
   }
-}
-
-function testDjAudio() {
-  testingDj.value = true
-  djTestErr.value = ''
-  djTestOk.value = false
-
-  if (testAudio) {
-    testAudio.pause()
-    testAudio = null
-  }
-
-  testAudio = new Audio('/api/tts/test')
-  testAudio.volume = 0.7
-
-  testAudio.addEventListener('play', () => {
-    testingDj.value = false
-    djTestOk.value = true
-    setTimeout(() => {
-      djTestOk.value = false
-    }, 3000)
-  })
-
-  testAudio.addEventListener('error', () => {
-    testingDj.value = false
-    djTestErr.value = 'TTS 服务不可用，请检查 MiMo API Key'
-    testAudio = null
-  })
-
-  testAudio.addEventListener('ended', () => {
-    testAudio = null
-  })
-
-  testAudio.play().catch(() => {
-    testingDj.value = false
-    djTestErr.value = 'TTS 服务不可用，请检查 MiMo API Key'
-    testAudio = null
-  })
 }
 
 const channels = [
@@ -356,8 +308,7 @@ function openFavorites() {
 .channel-item,
 .user-info,
 .login-btn,
-.user-menu button,
-.dj-test-btn {
+.user-menu button {
   width: 100%;
   border: 1px solid transparent;
   border-radius: var(--radius-md);
@@ -373,8 +324,7 @@ function openFavorites() {
 
 .nav-item,
 .login-btn,
-.user-menu button,
-.dj-test-btn {
+.user-menu button {
   min-height: var(--control-height);
   display: flex;
   align-items: center;
@@ -653,27 +603,4 @@ function openFavorites() {
   box-shadow: 0 0 0 5px color-mix(in srgb, var(--success) 14%, transparent);
 }
 
-.dj-test-btn {
-  min-height: 38px;
-  justify-content: center;
-  color: var(--text-secondary);
-  border-color: var(--divider);
-  background: var(--bg-card);
-}
-
-.dj-test-btn:hover:not(:disabled) {
-  color: var(--text-primary);
-  border-color: color-mix(in srgb, var(--blue) 28%, var(--divider));
-}
-
-.dj-test-btn:disabled {
-  opacity: 0.64;
-}
-
-.dj-test-err {
-  color: var(--highlight);
-  font-size: 0.76rem;
-  line-height: 1.5;
-  text-align: center;
-}
 </style>

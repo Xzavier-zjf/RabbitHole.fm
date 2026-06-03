@@ -99,11 +99,8 @@ public class SongRequestService {
         // 5. Enqueue DJ intro + song to position 3
         String queueKey = "radio:queue:" + channelId;
 
-        RadioItemDTO djIntro = RadioItemDTO.dj(buildDjUrl(song, displayName, normalizedMessage),
-                "点播", song.getName());
+        RadioItemDTO djIntro = buildRequestDjItem(song, displayName, normalizedMessage);
         djIntro.setRequestId(sr.getId());
-        djIntro.setRequester(displayName);
-        djIntro.setMessage(normalizedMessage);
         insertAt(queueKey, 3, mapper.writeValueAsString(djIntro));
 
         RadioItemDTO songItem = RadioItemDTO.song(song, song.getSongUrl(), song.getLyric());
@@ -280,10 +277,8 @@ public class SongRequestService {
         if (song == null) {
             throw new BizException("歌曲不存在");
         }
-        RadioItemDTO djIntro = RadioItemDTO.dj(buildDjUrl(song, displayName, existing.getMessage()), "点播", song.getName());
+        RadioItemDTO djIntro = buildRequestDjItem(song, displayName, existing.getMessage());
         djIntro.setRequestId(existing.getId());
-        djIntro.setRequester(displayName);
-        djIntro.setMessage(existing.getMessage());
 
         RadioItemDTO songItem = RadioItemDTO.song(song, song.getSongUrl(), song.getLyric());
         songItem.setRequestId(existing.getId());
@@ -388,6 +383,42 @@ public class SongRequestService {
         url.append("&requester=").append(java.net.URLEncoder.encode(displayName, "UTF-8"));
         url.append("&message=").append(java.net.URLEncoder.encode(message != null ? message : "", "UTF-8"));
         return url.toString();
+    }
+
+    private RadioItemDTO buildRequestDjItem(SongDTO song, String displayName, String message) throws IOException {
+        String subtitle = requestDjSubtitle(song, displayName, message);
+        RadioItemDTO djIntro = RadioItemDTO.dj(buildDjUrl(song, displayName, message), "点歌", song.getName());
+        djIntro.setRequester(displayName);
+        djIntro.setMessage(message);
+        djIntro.setDjSubtitle(subtitle);
+        djIntro.setOptional(true);
+        return djIntro;
+    }
+
+    private String requestDjSubtitle(SongDTO song, String displayName, String message) {
+        String requester = displayName != null && !displayName.isBlank() ? displayName : "听众";
+        String songName = song.getName() != null && !song.getName().isBlank() ? song.getName() : "这首歌";
+        String artists = song.getArtists() != null && !song.getArtists().isEmpty()
+                ? String.join("、", song.getArtists())
+                : "";
+        String note = trimForDj(message, 28);
+        StringBuilder text = new StringBuilder();
+        text.append(requester).append("点播了《").append(songName).append("》");
+        if (!artists.isBlank()) {
+            text.append("，来自").append(artists);
+        }
+        if (!note.isBlank()) {
+            text.append("。Ta 说：").append(note);
+        }
+        text.append("。音乐继续。");
+        return trimForDj(text.toString(), 80);
+    }
+
+    private String trimForDj(String value, int limit) {
+        if (value == null) return "";
+        String normalized = value.trim().replaceAll("[\\r\\n]+", " ").replaceAll("\\s+", " ");
+        if (normalized.length() <= limit) return normalized;
+        return normalized.substring(0, Math.max(0, limit - 1)) + "…";
     }
 
     private List<String> safeArtists(SongDTO song) {

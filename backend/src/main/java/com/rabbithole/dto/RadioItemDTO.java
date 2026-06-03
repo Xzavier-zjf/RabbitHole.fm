@@ -23,6 +23,8 @@ public class RadioItemDTO {
     private String sourcePayload;
     private String requester;
     private String message;
+    private String djSubtitle;
+    private Boolean optional;
 
     public static RadioItemDTO song(SongDTO song, String url, LyricDTO lyric) {
         RadioItemDTO item = new RadioItemDTO();
@@ -47,6 +49,7 @@ public class RadioItemDTO {
         item.setType("dj");
         item.setDjUrl(djUrl);
         item.setName("DJ: " + prevName + " → " + nextName);
+        item.setOptional(true);
         return item;
     }
 }

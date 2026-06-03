@@ -28,6 +28,9 @@ public class RadioPlaylistService {
     @Value("${radio.default-channel}")
     private long defaultChannel;
 
+    @Value("${radio.dj.auto-insert:false}")
+    private boolean autoInsertDj;
+
     /**
      * Load channel by fetching playlist metadata only (fast).
      * URLs are fetched lazily by the frontend when each song starts playing.
@@ -50,8 +53,7 @@ public class RadioPlaylistService {
             RadioItemDTO songItem = RadioItemDTO.song(song, null, null);
             queue.add(songItem);
 
-            // Insert DJ interlude every 2 songs
-            if (i < songs.size() - 1 && (i + 1) % 2 == 0) {
+            if (autoInsertDj && i < songs.size() - 1 && (i + 1) % 2 == 0) {
                 SongDTO prev = songs.get(i);
                 SongDTO next = songs.get(i + 1);
                 RadioItemDTO djItem = RadioItemDTO.dj(

@@ -30,8 +30,9 @@ public class MusicController {
 
     @GetMapping("/search")
     public List<SongDTO> search(@RequestParam String keywords,
-                                @RequestParam(defaultValue = "30") int limit) throws IOException {
-        return searchAggregator.search(keywords, limit);
+                                @RequestParam(defaultValue = "30") int limit,
+                                @RequestParam(defaultValue = "all") String source) throws IOException {
+        return searchAggregator.search(keywords, limit, source);
     }
 
     @GetMapping("/song/{id}")

@@ -55,7 +55,7 @@ const router = useRouter()
 const coverFailed = ref(false)
 
 const showCoverImage = computed(() => !!player.currentItem?.coverUrl && !coverFailed.value)
-const itemTypeLabel = computed(() => player.currentItem?.type === 'dj' ? 'DJ 口播' : 'RabbitHole.fm')
+const itemTypeLabel = computed(() => player.currentItem?.type === 'dj' ? '点歌口播' : 'RabbitHole.fm')
 
 watch(() => player.currentItem?.coverUrl, () => {
   coverFailed.value = false

@@ -7,6 +7,9 @@ import com.rabbithole.service.MimoTtsService;
 import com.rabbithole.service.NeteaseMusicService;
 import com.rabbithole.service.RadioPlaylistService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,12 +22,19 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/radio")
 @RequiredArgsConstructor
+@Slf4j
 public class RadioController {
 
     private final NeteaseMusicService musicService;
     private final MimoTtsService ttsService;
     private final DjScriptService djService;
     private final RadioPlaylistService playlistService;
+
+    @Value("${radio.dj.enabled:true}")
+    private boolean djEnabled;
+
+    @Value("${radio.dj.tts-timeout-ms:1800}")
+    private long djTtsTimeoutMs;
 
     @GetMapping("/channel/{playlistId}")
     public List<RadioItemDTO> loadChannel(@PathVariable Long playlistId) throws IOException {
@@ -46,6 +56,11 @@ public class RadioController {
             @RequestParam(required = false) String nextArtist,
             @RequestParam(required = false) String requester,
             @RequestParam(required = false) String message) throws IOException {
+        if (!djEnabled) {
+            return ResponseEntity.status(HttpStatus.NO_CONTENT)
+                    .header("X-DJ-Skipped", "disabled")
+                    .build();
+        }
 
         SongDTO prev = null;
         SongDTO next = null;
@@ -77,15 +92,23 @@ public class RadioController {
             next.setArtists(List.of());
         }
 
-        DjScriptService.DjScript script;
-        if (requester != null && !requester.isEmpty()) {
-            var reqCtx = new DjScriptService.RequestContext(true, requester, message);
-            script = djService.buildWithContext(prev, next, reqCtx);
-        } else {
-            script = djService.build(prev, next);
-        }
+        DjScriptService.DjScript script = requester != null && !requester.isEmpty()
+                ? djService.buildFastRequest(next, requester, message)
+                : djService.buildFast(prev, next);
 
-        byte[] audio = ttsService.synthesize(script.styleHint(), script.text());
+        byte[] audio;
+        try {
+            audio = ttsService.synthesize(script.styleHint(), script.text(), djTtsTimeoutMs);
+        } catch (Exception e) {
+            log.warn("DJ TTS skipped nextSong={} requester={} reason={}",
+                    next.getName(), requester, e.toString());
+            String subtitleBase64 = Base64.getEncoder()
+                    .encodeToString(script.text().getBytes(StandardCharsets.UTF_8));
+            return ResponseEntity.status(HttpStatus.NO_CONTENT)
+                    .header("X-DJ-Skipped", "tts-unavailable")
+                    .header("X-DJ-Subtitle-Base64", subtitleBase64)
+                    .build();
+        }
         String subtitleBase64 = Base64.getEncoder()
                 .encodeToString(script.text().getBytes(StandardCharsets.UTF_8));
         return ResponseEntity.ok()

@@ -168,7 +168,7 @@ const notice = useNoticeStore()
 const loading = ref(false)
 const cancellingId = ref(null)
 const list = computed(() => requestFeed.getQueue(props.channelId))
-const currentTypeLabel = computed(() => player.currentItem?.type === 'dj' ? 'DJ 口播' : 'RabbitHole.fm')
+const currentTypeLabel = computed(() => player.currentItem?.type === 'dj' ? '点歌口播' : 'RabbitHole.fm')
 const QUEUE_PANEL_QUERY = '(max-width: 1200px)'
 const isPanelVisible = ref(
   typeof window === 'undefined' ? true : !window.matchMedia(QUEUE_PANEL_QUERY).matches
@@ -242,11 +242,11 @@ function isMine(item) {
 
 function requesterLabel(item) {
   if (item.requester) return item.requester
-  return item.type === 'dj' ? 'DJ 小糖' : 'RabbitHole.fm'
+  return item.type === 'dj' ? '点歌增强' : 'RabbitHole.fm'
 }
 
 function queueTitle(item) {
-  if (item.type === 'dj') return item.name || 'DJ 口播'
+  if (item.type === 'dj') return item.name || '点歌口播（可跳过）'
   return item.name || '未命名歌曲'
 }
 
@@ -256,7 +256,7 @@ function sourceLabel(item) {
 }
 
 function queueMessage(item) {
-  return item.message || item.djSubtitle || ''
+  return item.djSubtitle || item.message || ''
 }
 
 function estimateWait(index) {

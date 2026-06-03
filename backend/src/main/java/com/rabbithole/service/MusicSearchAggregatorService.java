@@ -1,6 +1,7 @@
 package com.rabbithole.service;
 
 import com.rabbithole.dto.SongDTO;
+import com.rabbithole.exception.BizException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -20,7 +21,19 @@ public class MusicSearchAggregatorService {
     private final FreeApiMusicService freeApiMusicService;
 
     public List<SongDTO> search(String keywords, int limit) throws IOException {
+        return search(keywords, limit, "all");
+    }
+
+    public List<SongDTO> search(String keywords, int limit, String source) throws IOException {
         int safeLimit = Math.max(1, Math.min(limit, 50));
+        String normalizedSource = normalizeSource(source);
+        if ("netease".equals(normalizedSource)) {
+            return neteaseMusicService.search(keywords, safeLimit);
+        }
+        if ("free-api".equals(normalizedSource)) {
+            return freeApiMusicService.search(keywords, safeLimit);
+        }
+
         int upstreamLimit = Math.max(safeLimit, Math.min(safeLimit * 2, 50));
         Map<String, SongDTO> merged = new LinkedHashMap<>();
         IOException primaryFailure = null;
@@ -48,6 +61,16 @@ public class MusicSearchAggregatorService {
         return new ArrayList<>(merged.values()).stream()
                 .limit(safeLimit)
                 .toList();
+    }
+
+    private String normalizeSource(String source) {
+        String normalized = source == null || source.isBlank()
+                ? "all"
+                : source.trim().toLowerCase();
+        if ("all".equals(normalized) || "netease".equals(normalized) || "free-api".equals(normalized)) {
+            return normalized;
+        }
+        throw new BizException("不支持的音乐源: " + source);
     }
 
     public Map<String, Object> status() {

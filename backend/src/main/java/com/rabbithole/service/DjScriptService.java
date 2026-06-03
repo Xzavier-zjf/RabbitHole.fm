@@ -33,6 +33,15 @@ public class DjScriptService {
         return buildWithContext(previous, next, null);
     }
 
+    public DjScript buildFast(SongDTO previous, SongDTO next) {
+        return new DjScript(STYLE_HINT, "(台湾腔)" + trimForAudio(fallbackTemplate(decideScene(previous, next, null), previous, next, null)));
+    }
+
+    public DjScript buildFastRequest(SongDTO next, String requester, String message) {
+        RequestContext reqCtx = new RequestContext(true, requester, message);
+        return new DjScript(STYLE_HINT, "(台湾腔)" + trimForAudio(fallbackTemplate("request", null, next, reqCtx)));
+    }
+
     /**
      * Build DJ script with optional request context.
      */
@@ -123,6 +132,13 @@ public class DjScriptService {
         if (msg == null) return "";
         if (msg.length() > 80) msg = msg.substring(0, 80);
         return msg.replaceAll("[\\r\\n]+", " ");
+    }
+
+    private String trimForAudio(String text) {
+        if (text == null) return "";
+        String normalized = text.replaceAll("[\\r\\n]+", " ").replaceAll("\\s+", " ").trim();
+        if (normalized.length() <= 80) return normalized;
+        return normalized.substring(0, 79) + "…";
     }
 
     private String joinArtists(java.util.List<String> artists) {
