@@ -26,6 +26,11 @@ netease:
   api-base: http://127.0.0.1:3000
   cookie: ""
 
+music:
+  free-api:
+    enabled: true
+    search-url: https://api.apiopen.top/searchMusic
+
 mimo:
   api-base: https://api.xiaomimimo.com
   api-key: ${MIMO_API_KEY:}

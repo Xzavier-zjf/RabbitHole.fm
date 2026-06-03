@@ -24,15 +24,22 @@ function persistPlaylists(playlists) {
 
 function normalizePlaylist(playlist) {
   if (!playlist || typeof playlist !== 'object') return null
+  const tracks = []
+  const seen = new Set()
+  if (Array.isArray(playlist.tracks)) {
+    playlist.tracks.map(normalizeTrack).filter(Boolean).forEach((track) => {
+      if (seen.has(track.trackKey)) return
+      seen.add(track.trackKey)
+      tracks.push(track)
+    })
+  }
   const id = playlist.id || createId()
   return {
     id,
     name: playlist.name || DEFAULT_PLAYLIST_NAME,
     createdAt: playlist.createdAt || new Date().toISOString(),
     updatedAt: playlist.updatedAt || playlist.createdAt || new Date().toISOString(),
-    tracks: Array.isArray(playlist.tracks)
-      ? playlist.tracks.map(normalizeTrack).filter(Boolean)
-      : [],
+    tracks,
   }
 }
 
@@ -46,19 +53,41 @@ function normalizeTrack(track) {
         .split(/[、/]/)
         .map((name) => name.trim())
         .filter(Boolean)
-  return {
+  const source = track.source || 'netease'
+  const normalized = {
     songId,
     name: track.name || track.songName || '未命名歌曲',
     artists,
     album: track.album || '',
     coverUrl: track.coverUrl || '',
     durationMs: track.durationMs || null,
+    songUrl: track.songUrl || '',
+    lyric: track.lyric || null,
+    source,
+    sourceLabel: track.sourceLabel || (source === 'netease' ? '网易云' : source),
     addedAt: track.addedAt || new Date().toISOString(),
+  }
+  return {
+    ...normalized,
+    trackKey: createTrackKey(normalized),
   }
 }
 
 function createId() {
   return `pl-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+}
+
+function createTrackKey(track) {
+  const source = track?.source || 'netease'
+  const songId = track?.songId ?? track?.id
+  return `${source}:${String(songId)}`
+}
+
+function createTrackKeyFromRef(trackRef, fallbackSource = 'netease') {
+  if (trackRef && typeof trackRef === 'object') {
+    return createTrackKey(trackRef)
+  }
+  return `${fallbackSource}:${String(trackRef)}`
 }
 
 export const usePlaylistsStore = defineStore('playlists', () => {
@@ -120,7 +149,7 @@ export const usePlaylistsStore = defineStore('playlists', () => {
     let added = false
     playlists.value = playlists.value.map((playlist) => {
       if (playlist.id !== playlistId) return playlist
-      const exists = playlist.tracks.some((item) => String(item.songId) === String(normalized.songId))
+      const exists = playlist.tracks.some((item) => item.trackKey === normalized.trackKey)
       if (exists) return playlist
       added = true
       return {
@@ -138,13 +167,14 @@ export const usePlaylistsStore = defineStore('playlists', () => {
     return addTrack(first.id, track)
   }
 
-  function removeTrack(playlistId, songId) {
+  function removeTrack(playlistId, trackRef) {
+    const key = createTrackKeyFromRef(trackRef)
     playlists.value = playlists.value.map((playlist) => {
       if (playlist.id !== playlistId) return playlist
       return {
         ...playlist,
         updatedAt: new Date().toISOString(),
-        tracks: playlist.tracks.filter((track) => String(track.songId) !== String(songId)),
+        tracks: playlist.tracks.filter((track) => track.trackKey !== key),
       }
     })
     persist()
@@ -178,10 +208,11 @@ export const usePlaylistsStore = defineStore('playlists', () => {
     return changed
   }
 
-  function moveTrack(playlistId, songId, direction) {
+  function moveTrack(playlistId, trackRef, direction) {
     const playlist = getPlaylist(playlistId)
     if (!playlist) return false
-    const index = playlist.tracks.findIndex((track) => String(track.songId) === String(songId))
+    const key = createTrackKeyFromRef(trackRef)
+    const index = playlist.tracks.findIndex((track) => track.trackKey === key)
     if (index < 0) return false
     return reorderTrack(playlistId, index, index + direction)
   }
@@ -202,5 +233,6 @@ export const usePlaylistsStore = defineStore('playlists', () => {
     reorderTrack,
     moveTrack,
     getPlaylist,
+    trackKey: createTrackKey,
   }
 })

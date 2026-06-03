@@ -55,6 +55,7 @@ public class NeteaseMusicService {
             dto.setAlbum(s.path("al").path("name").asText());
             dto.setCoverUrl(s.path("al").path("picUrl").asText());
             dto.setDurationMs(s.path("dt").asLong());
+            markSource(dto);
             list.add(dto);
         }
 
@@ -122,6 +123,7 @@ public class NeteaseMusicService {
             dto.setAlbum(s.path("al").path("name").asText());
             dto.setCoverUrl(s.path("al").path("picUrl").asText());
             dto.setDurationMs(s.path("dt").asLong());
+            markSource(dto);
             writeCache(cacheKey, mapper.writeValueAsString(dto), Duration.ofHours(24));
             return dto;
         }
@@ -143,6 +145,7 @@ public class NeteaseMusicService {
             dto.setAlbum(s.path("al").path("name").asText());
             dto.setCoverUrl(s.path("al").path("picUrl").asText());
             dto.setDurationMs(s.path("dt").asLong());
+            markSource(dto);
             list.add(dto);
         }
         return list;
@@ -160,6 +163,11 @@ public class NeteaseMusicService {
 
     public String getApiBase() {
         return apiBase;
+    }
+
+    private void markSource(SongDTO dto) {
+        dto.setSource("netease");
+        dto.setSourceLabel("网易云");
     }
 
     private String readCache(String key) {

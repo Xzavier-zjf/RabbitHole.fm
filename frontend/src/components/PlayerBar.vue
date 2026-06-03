@@ -54,7 +54,7 @@
 
     <div class="player-actions">
       <button
-        v-if="player.currentItem.songId"
+        v-if="canUseAccountLibrary(player.currentItem)"
         class="action-btn"
         :class="{ active: favIds.has(player.currentItem.songId) }"
         type="button"
@@ -164,7 +164,7 @@ async function loadFavs() {
 async function toggleFav() {
   if (!userStore.isLoggedIn) return
   const item = player.currentItem
-  if (!item?.songId) return
+  if (!canUseAccountLibrary(item)) return
   try {
     if (favIds.value.has(item.songId)) {
       await removeFavorite(item.songId)
@@ -178,6 +178,10 @@ async function toggleFav() {
       favIds.value.add(item.songId)
     }
   } catch { /* ignore */ }
+}
+
+function canUseAccountLibrary(item) {
+  return !!item?.songId && (!item.source || item.source === 'netease')
 }
 
 function addToPlaylist() {

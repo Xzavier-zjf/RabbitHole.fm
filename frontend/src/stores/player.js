@@ -107,7 +107,13 @@ function normalizeQueueSong(song) {
     message: song.message || '',
     songUrl: song.songUrl || '',
     lyric: song.lyric || '',
+    source: song.source || 'netease',
+    sourceLabel: song.sourceLabel || '网易云',
   }
+}
+
+function canUseBackendSongId(item) {
+  return !item?.source || item.source === 'netease'
 }
 
 function readPlaybackContext() {
@@ -120,6 +126,7 @@ function readPlaybackContext() {
       currentTime: Number.isFinite(Number(parsed.currentTime)) ? Number(parsed.currentTime) : 0,
       songId: Number.isFinite(Number(parsed.songId)) ? Number(parsed.songId) : null,
       requestId: Number.isFinite(Number(parsed.requestId)) ? Number(parsed.requestId) : null,
+      source: typeof parsed.source === 'string' ? parsed.source : 'netease',
       type: typeof parsed.type === 'string' ? parsed.type : 'song',
       showLyrics: !!parsed.showLyrics,
       updatedAt: Number.isFinite(Number(parsed.updatedAt)) ? Number(parsed.updatedAt) : 0,
@@ -190,6 +197,7 @@ export const usePlayerStore = defineStore('player', () => {
       currentTime: currentTime.value,
       songId: item?.songId ?? null,
       requestId: item?.requestId ?? null,
+      source: item?.source || 'netease',
       type: item?.type ?? 'song',
       showLyrics: !!viewState.value.showLyrics,
       updatedAt: now,
@@ -289,6 +297,11 @@ export const usePlayerStore = defineStore('player', () => {
         return
       }
       if (!item.songUrl) {
+        if (!canUseBackendSongId(item)) {
+          item.broken = true
+          next()
+          return
+        }
         await fetchSongUrlWithRetry(item.songId)
         if (!item.songUrl) {
           item.broken = true
@@ -351,10 +364,16 @@ export const usePlayerStore = defineStore('player', () => {
       songId: item.songId,
       songName: item.name || '',
       artists: (item.artists || []).join(' / '),
+      coverUrl: item.coverUrl || '',
+      source: item.source || 'netease',
+      sourceLabel: item.sourceLabel || '网易云',
+      songUrl: item.songUrl || '',
+      lyric: item.lyric || null,
       channelId: currentChannelId.value,
       playedAt: new Date().toISOString(),
     }
     persistLocalHistory(entry)
+    if (!canUseBackendSongId(item)) return
     recordPlay({
       songId: item.songId,
       songName: item.name || '',
@@ -371,12 +390,10 @@ export const usePlayerStore = defineStore('player', () => {
       const newItems = Array.isArray(res.data) ? res.data : []
 
       // Collect IDs of all items already in queue to avoid duplicates
-      const existingKeys = new Set(
-        queue.value.map(item => `${item.type}:${item.songId || item.djUrl || ''}`)
-      )
+      const existingKeys = new Set(queue.value.map(queueItemKey))
 
       const trulyNew = newItems.filter(item => {
-        const key = `${item.type}:${item.songId || item.djUrl || ''}`
+        const key = queueItemKey(item)
         return !existingKeys.has(key)
       })
 
@@ -384,10 +401,10 @@ export const usePlayerStore = defineStore('player', () => {
         queue.value.push(...trulyNew)
       } else if (allowRepeat && newItems.length > 0) {
         const currentKey = queue.value[currentIndex.value]
-          ? `${queue.value[currentIndex.value].type}:${queue.value[currentIndex.value].songId || queue.value[currentIndex.value].djUrl || ''}`
+          ? queueItemKey(queue.value[currentIndex.value])
           : ''
         const repeatItems = newItems
-          .filter((item) => `${item.type}:${item.songId || item.djUrl || ''}` !== currentKey)
+          .filter((item) => queueItemKey(item) !== currentKey)
           .slice(0, 24)
         queue.value.push(...repeatItems)
       }
@@ -414,7 +431,7 @@ export const usePlayerStore = defineStore('player', () => {
     const endIdx = Math.min(startIdx + 2, queue.value.length)
     for (let i = startIdx; i < endIdx; i++) {
       const item = queue.value[i]
-      if (item && item.type === 'song' && !item.songUrl) {
+      if (item && item.type === 'song' && !item.songUrl && canUseBackendSongId(item)) {
         getSongData(item.songId).then(res => {
           item.songUrl = res.data.url
           item.lyric = res.data.lyric
@@ -530,13 +547,23 @@ export const usePlayerStore = defineStore('player', () => {
       if (byRequestId >= 0) return byRequestId
     }
     if (resumeContext.songId != null) {
-      const bySongId = items.findIndex((item) => item.songId === resumeContext.songId && item.type === resumeContext.type)
+      const resumeSource = resumeContext.source || 'netease'
+      const bySongId = items.findIndex((item) => (
+        item.songId === resumeContext.songId
+        && item.type === resumeContext.type
+        && (item.source || 'netease') === resumeSource
+      ))
       if (bySongId >= 0) return bySongId
     }
     if (resumeContext.currentIndex >= 0 && resumeContext.currentIndex < items.length) {
       return resumeContext.currentIndex
     }
     return -1
+  }
+
+  function queueItemKey(item) {
+    const source = item?.source || 'netease'
+    return `${item?.type || 'song'}:${source}:${item?.songId || item?.djUrl || ''}`
   }
 
   function getPlaybackViewState() {

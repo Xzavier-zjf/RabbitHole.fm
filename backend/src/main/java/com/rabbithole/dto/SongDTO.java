@@ -12,4 +12,8 @@ public class SongDTO {
     private String album;
     private String coverUrl;
     private Long durationMs;
+    private String source;
+    private String sourceLabel;
+    private String songUrl;
+    private LyricDTO lyric;
 }

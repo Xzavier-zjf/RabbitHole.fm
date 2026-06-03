@@ -104,6 +104,7 @@
                   <div class="np-kicker">
                     <span class="live-dot"></span>
                     <span>{{ isDj ? 'DJ Interlude' : 'Now Playing' }}</span>
+                    <span v-if="sourceLabel(player.currentItem)" class="source-badge">{{ sourceLabel(player.currentItem) }}</span>
                   </div>
                   <h1>{{ player.currentItem.name }}</h1>
                   <p class="np-artist">{{ (player.currentItem.artists || []).join(' / ') || '未知歌手' }}</p>
@@ -117,7 +118,7 @@
                       <span>{{ isDj ? '查看字幕' : '查看歌词' }}</span>
                     </button>
                     <button
-                      v-if="player.currentItem.songId"
+                      v-if="canUseAccountLibrary(player.currentItem)"
                       class="ghost-btn"
                       :class="{ active: isFavorited }"
                       @click="toggleFav"
@@ -181,10 +182,13 @@
                   </div>
                   <div class="lyrics-mini-info">
                     <div class="lyrics-mini-name">{{ player.currentItem.name }}</div>
-                    <div class="lyrics-mini-artist">{{ (player.currentItem.artists || []).join(' / ') || '未知歌手' }}</div>
+                    <div class="lyrics-mini-artist">
+                      <span>{{ (player.currentItem.artists || []).join(' / ') || '未知歌手' }}</span>
+                      <span v-if="sourceLabel(player.currentItem)" class="source-badge mini">{{ sourceLabel(player.currentItem) }}</span>
+                    </div>
                   </div>
                   <button
-                    v-if="player.currentItem.songId"
+                    v-if="canUseAccountLibrary(player.currentItem)"
                     class="icon-btn"
                     :class="{ active: isFavorited }"
                     @click="toggleFav"
@@ -379,6 +383,7 @@ watch(() => player.currentItem?.coverUrl, () => {
 })
 
 const isFavorited = computed(() => {
+  if (!canUseAccountLibrary(player.currentItem)) return false
   const songId = player.currentItem?.songId
   return songId ? favIds.value.has(songId) : false
 })
@@ -394,7 +399,7 @@ async function loadFavs() {
 async function toggleFav() {
   if (!userStore.isLoggedIn) return
   const item = player.currentItem
-  if (!item?.songId) return
+  if (!canUseAccountLibrary(item)) return
   try {
     if (favIds.value.has(item.songId)) {
       await removeFavorite(item.songId)
@@ -408,6 +413,16 @@ async function toggleFav() {
       favIds.value.add(item.songId)
     }
   } catch { /* ignore */ }
+}
+
+function canUseAccountLibrary(item) {
+  return !!item?.songId && (!item.source || item.source === 'netease')
+}
+
+function sourceLabel(item) {
+  const source = item?.source || 'netease'
+  if (source === 'netease') return ''
+  return item?.sourceLabel || source
 }
 
 function onKeydown(e) {
@@ -1092,6 +1107,26 @@ function onMiniCoverError() {
   text-transform: uppercase;
 }
 
+.source-badge {
+  min-height: 22px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 8px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--blue) 13%, transparent);
+  color: var(--blue);
+  font-size: 0.66rem;
+  font-weight: 850;
+  text-transform: none;
+}
+
+.source-badge.mini {
+  min-height: 18px;
+  padding: 0 7px;
+  font-size: 0.64rem;
+  flex-shrink: 0;
+}
+
 .live-dot {
   width: 8px;
   height: 8px;
@@ -1182,6 +1217,9 @@ function onMiniCoverError() {
 }
 
 .lyrics-mini-artist {
+  display: flex;
+  align-items: center;
+  gap: 7px;
   color: var(--text-secondary);
   font-size: 0.8rem;
   margin-top: 3px;

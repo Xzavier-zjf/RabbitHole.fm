@@ -1,6 +1,7 @@
 package com.rabbithole.controller;
 
 import com.rabbithole.dto.SongDTO;
+import com.rabbithole.service.MusicSearchAggregatorService;
 import com.rabbithole.service.NeteaseMusicService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,12 +25,13 @@ import java.util.Map;
 public class MusicController {
 
     private final NeteaseMusicService musicService;
+    private final MusicSearchAggregatorService searchAggregator;
     private final OkHttpClient http;
 
     @GetMapping("/search")
     public List<SongDTO> search(@RequestParam String keywords,
                                 @RequestParam(defaultValue = "30") int limit) throws IOException {
-        return musicService.search(keywords, limit);
+        return searchAggregator.search(keywords, limit);
     }
 
     @GetMapping("/song/{id}")
@@ -39,8 +41,7 @@ public class MusicController {
 
     @GetMapping("/status")
     public Map<String, Object> status() {
-        boolean alive = musicService.checkApiStatus();
-        return Map.of("apiAlive", alive, "apiUrl", musicService.getApiBase());
+        return searchAggregator.status();
     }
 
     /**

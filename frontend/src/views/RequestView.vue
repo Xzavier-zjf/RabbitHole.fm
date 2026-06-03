@@ -49,16 +49,26 @@
         </div>
 
         <div class="results" v-if="results.length">
-          <article class="track-row" v-for="s in results" :key="s.id">
+          <article class="track-row" v-for="s in results" :key="`${s.source || 'netease'}-${s.id}`">
             <img v-if="s.coverUrl" :src="proxyCoverUrl(s.coverUrl)" class="track-cover" referrerpolicy="no-referrer" />
             <span v-else class="track-cover fallback">
               <Music :size="18" />
             </span>
             <span class="track-copy">
-              <span class="track-title">{{ s.name }}</span>
+              <span class="track-title-row">
+                <span class="track-title">{{ s.name }}</span>
+                <span v-if="sourceLabel(s)" class="source-badge">{{ sourceLabel(s) }}</span>
+              </span>
               <span class="track-meta">{{ (s.artists || []).join(' / ') || '未知歌手' }}</span>
             </span>
-            <button class="pick-icon" type="button" @click="pick(s)" aria-label="选择点歌" title="选择点歌">
+            <button
+              class="pick-icon"
+              type="button"
+              :disabled="!canRequestSong(s)"
+              @click="pick(s)"
+              :aria-label="canRequestSong(s) ? '选择点歌' : '外部源暂不支持房间点歌'"
+              :title="canRequestSong(s) ? '选择点歌' : '外部源暂不支持房间点歌，可先试听或加入歌单'"
+            >
               <Plus :size="18" />
             </button>
             <button class="pick-icon secondary" type="button" @click="saveSong(s)" aria-label="加入歌单" title="加入歌单">
@@ -87,6 +97,9 @@
             <div class="picked-title">{{ pickedSong.name }}</div>
             <div class="picked-meta">{{ (pickedSong.artists || []).join(' / ') || '未知歌手' }}</div>
           </div>
+          <p v-if="pickedSong && !canRequestSong(pickedSong)" class="inline-error">
+            这个结果来自 {{ pickedSong.sourceLabel || pickedSong.source }}，当前房间点歌只支持网易云来源。
+          </p>
           <textarea
             v-model="message"
             placeholder="想对谁说什么？可选，最多 80 字。"
@@ -97,7 +110,7 @@
               <X :size="18" />
               <span>取消选择</span>
             </button>
-            <button class="primary-btn" type="button" @click="submitRequest" :disabled="submitting">
+            <button class="primary-btn" type="button" @click="submitRequest" :disabled="submitting || !canRequestSong(pickedSong)">
               <LoaderCircle v-if="submitting" :size="18" class="spin" />
               <Send v-else :size="18" />
               <span>{{ submitting ? '提交中' : '提交点歌' }}</span>
@@ -253,12 +266,21 @@ async function search() {
 }
 
 function pick(song) {
+  if (!canRequestSong(song)) {
+    notice.show({
+      type: 'info',
+      title: 'Requests',
+      message: '外部音乐源可以试听或加入歌单；房间点歌暂时只支持网易云来源。',
+      duration: 2600,
+    })
+    return
+  }
   pickedSong.value = song
   resultMsg.value = ''
 }
 
 async function submitRequest() {
-  if (!pickedSong.value) return
+  if (!pickedSong.value || !canRequestSong(pickedSong.value)) return
   const channelId = activeChannelId.value
   const tempRequestId = `temp-${Date.now()}`
   const optimisticRequest = {
@@ -350,6 +372,16 @@ function saveSong(song) {
     message: added ? '已加入我的歌单。' : '这首歌已经在歌单里了。',
     duration: 1800,
   })
+}
+
+function canRequestSong(song) {
+  return !song?.source || song.source === 'netease'
+}
+
+function sourceLabel(song) {
+  const source = song?.source || 'netease'
+  if (source === 'netease') return ''
+  return song?.sourceLabel || source
 }
 
 async function fetchMyRequests(options = {}) {
@@ -683,15 +715,39 @@ textarea::placeholder {
   gap: 3px;
 }
 
-.track-title,
+.track-title-row,
 .track-meta {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+.track-title-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
 .track-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--text-primary);
+  font-weight: 850;
+}
+
+.source-badge {
+  min-height: 20px;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 0 7px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--blue) 12%, transparent);
+  color: var(--blue);
+  font-size: 0.66rem;
   font-weight: 850;
 }
 
@@ -715,6 +771,11 @@ textarea::placeholder {
 .pick-icon.secondary {
   color: var(--blue);
   background: color-mix(in srgb, var(--blue) 10%, transparent);
+}
+
+.pick-icon:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
 }
 
 .draft {

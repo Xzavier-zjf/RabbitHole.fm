@@ -68,13 +68,16 @@
       </form>
 
       <div v-if="results.length" class="results">
-        <article class="track-row" v-for="song in results" :key="song.id">
+        <article class="track-row" v-for="song in results" :key="`${song.source || 'netease'}-${song.id}`">
           <img v-if="song.coverUrl" class="track-cover" :src="proxyCoverUrl(song.coverUrl)" referrerpolicy="no-referrer" />
           <span v-else class="track-cover fallback">
             <Music :size="18" />
           </span>
           <span class="track-copy">
-            <span class="track-title">{{ song.name }}</span>
+            <span class="track-title-row">
+              <span class="track-title">{{ song.name }}</span>
+              <span v-if="sourceLabel(song)" class="source-badge">{{ sourceLabel(song) }}</span>
+            </span>
             <span class="track-meta">{{ (song.artists || []).join(' / ') || '未知歌手' }}</span>
           </span>
           <button class="icon-btn" type="button" @click="playSong(song)" aria-label="播放歌曲" title="播放歌曲">
@@ -190,6 +193,12 @@ function saveSong(song) {
     message: added ? '已加入我的歌单。' : '这首歌已经在歌单里了。',
     duration: 1800,
   })
+}
+
+function sourceLabel(song) {
+  const source = song?.source || 'netease'
+  if (source === 'netease') return ''
+  return song?.sourceLabel || source
 }
 </script>
 
@@ -463,15 +472,39 @@ function saveSong(song) {
   gap: 4px;
 }
 
-.track-title,
+.track-title-row,
 .track-meta {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+.track-title-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
 .track-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--text-primary);
+  font-weight: 850;
+}
+
+.source-badge {
+  min-height: 20px;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 0 7px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--blue) 12%, transparent);
+  color: var(--blue);
+  font-size: 0.66rem;
   font-weight: 850;
 }
 

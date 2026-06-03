@@ -93,9 +93,9 @@
           <article
             class="track-row"
             v-for="(track, index) in activePlaylist.tracks"
-            :key="track.songId"
+            :key="trackKey(track)"
             :class="{
-              dragging: draggingSongId === String(track.songId),
+              dragging: draggingTrackKey === trackKey(track),
               'drop-target': dropTargetIndex === index,
             }"
             draggable="true"
@@ -118,7 +118,10 @@
               <Music :size="18" />
             </span>
             <div class="track-info">
-              <div class="track-title">{{ track.name }}</div>
+              <div class="track-title-row">
+                <span class="track-title">{{ track.name }}</span>
+                <span v-if="sourceLabel(track)" class="source-badge">{{ sourceLabel(track) }}</span>
+              </div>
               <div class="track-meta">{{ track.artists.join(' / ') || '未知歌手' }}</div>
             </div>
             <div class="track-actions">
@@ -126,7 +129,7 @@
                 class="icon-btn"
                 type="button"
                 :disabled="index === 0"
-                @click="moveTrack(track.songId, -1)"
+                @click="moveTrack(track, -1)"
                 aria-label="上移歌曲"
                 title="上移歌曲"
               >
@@ -136,7 +139,7 @@
                 class="icon-btn"
                 type="button"
                 :disabled="index === activePlaylist.tracks.length - 1"
-                @click="moveTrack(track.songId, 1)"
+                @click="moveTrack(track, 1)"
                 aria-label="下移歌曲"
                 title="下移歌曲"
               >
@@ -145,7 +148,7 @@
               <button class="icon-btn" type="button" @click="playTrack(track)" aria-label="播放歌曲" title="播放歌曲">
                 <Play :size="17" fill="currentColor" />
               </button>
-              <button class="icon-btn danger" type="button" @click="removeTrack(track.songId)" aria-label="从歌单移除" title="从歌单移除">
+              <button class="icon-btn danger" type="button" @click="removeTrack(track)" aria-label="从歌单移除" title="从歌单移除">
                 <Trash2 :size="17" />
               </button>
             </div>
@@ -191,7 +194,7 @@ const newPlaylistName = ref('')
 const renaming = ref(false)
 const renameValue = ref('')
 const draggingTrackIndex = ref(null)
-const draggingSongId = ref('')
+const draggingTrackKey = ref('')
 const dropTargetIndex = ref(null)
 
 const activePlaylist = computed(() => playlists.getPlaylist(selectedId.value))
@@ -230,22 +233,32 @@ function deleteActive() {
   selectedId.value = playlists.playlists[0]?.id || ''
 }
 
-function removeTrack(songId) {
-  if (!activePlaylist.value) return
-  playlists.removeTrack(activePlaylist.value.id, songId)
+function trackKey(track) {
+  return track?.trackKey || playlists.trackKey(track)
 }
 
-function moveTrack(songId, direction) {
+function sourceLabel(track) {
+  const source = track?.source || 'netease'
+  if (source === 'netease') return ''
+  return track?.sourceLabel || source
+}
+
+function removeTrack(track) {
   if (!activePlaylist.value) return
-  playlists.moveTrack(activePlaylist.value.id, songId, direction)
+  playlists.removeTrack(activePlaylist.value.id, track)
+}
+
+function moveTrack(track, direction) {
+  if (!activePlaylist.value) return
+  playlists.moveTrack(activePlaylist.value.id, track, direction)
 }
 
 function onTrackDragStart(event, index, track) {
   draggingTrackIndex.value = index
-  draggingSongId.value = String(track.songId)
+  draggingTrackKey.value = trackKey(track)
   dropTargetIndex.value = null
   event.dataTransfer.effectAllowed = 'move'
-  event.dataTransfer.setData('text/plain', String(track.songId))
+  event.dataTransfer.setData('text/plain', trackKey(track))
 }
 
 function onTrackDragOver(index) {
@@ -274,7 +287,7 @@ function onTrackDragEnd() {
 
 function clearDragState() {
   draggingTrackIndex.value = null
-  draggingSongId.value = ''
+  draggingTrackKey.value = ''
   dropTargetIndex.value = null
 }
 
@@ -510,7 +523,7 @@ function backToRadio() {
 
 .playlist-name,
 .playlist-meta,
-.track-title,
+.track-title-row,
 .track-meta {
   white-space: nowrap;
   overflow: hidden;
@@ -520,6 +533,33 @@ function backToRadio() {
 .playlist-name,
 .track-title {
   color: var(--text-primary);
+  font-weight: 850;
+}
+
+.track-title-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.track-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source-badge {
+  min-height: 20px;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 0 7px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--blue) 12%, transparent);
+  color: var(--blue);
+  font-size: 0.66rem;
   font-weight: 850;
 }
 

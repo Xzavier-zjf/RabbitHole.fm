@@ -36,12 +36,21 @@
       </div>
 
       <div class="list" v-else-if="list.length">
-        <article class="track-row" v-for="h in list" :key="h.id || [h.songId, h.playedAt, h.songName].join('-')">
-          <div class="track-cover fallback">
+        <article class="track-row" v-for="h in list" :key="historyKey(h)">
+          <img
+            v-if="h.coverUrl"
+            class="track-cover"
+            :src="proxyCoverUrl(h.coverUrl)"
+            referrerpolicy="no-referrer"
+          />
+          <div v-else class="track-cover fallback">
             <Music :size="18" />
           </div>
           <div class="track-info">
-            <div class="track-title">{{ h.songName || '未知歌曲' }}</div>
+            <div class="track-title-row">
+              <span class="track-title">{{ h.songName || '未知歌曲' }}</span>
+              <span v-if="sourceLabel(h)" class="source-badge">{{ sourceLabel(h) }}</span>
+            </div>
             <div class="track-meta">{{ h.artists || '未知歌手' }}</div>
           </div>
           <button class="icon-action" type="button" @click="playHistory(h)" aria-label="播放歌曲" title="播放歌曲">
@@ -69,7 +78,7 @@
 import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { CalendarDays, ChevronLeft, Clock, History, ListPlus, LoaderCircle, Music, Play } from '@lucide/vue'
-import { getHistory } from '../api'
+import { getHistory, proxyCoverUrl } from '../api'
 import { useUserStore } from '../stores/user'
 import { usePlayerStore } from '../stores/player'
 import { usePlaylistsStore } from '../stores/playlists'
@@ -148,12 +157,23 @@ function mergeHistory(remote, local) {
   const seen = new Set()
   return merged
     .filter((item) => {
-      const key = [item.songId || '', item.playedAt || '', item.songName || ''].join('-')
+      const key = historyKey(item)
       if (seen.has(key)) return false
       seen.add(key)
       return true
     })
     .sort((a, b) => Date.parse(b.playedAt || '') - Date.parse(a.playedAt || ''))
+}
+
+function historyKey(item) {
+  const source = item?.source || 'netease'
+  return item?.id || [source, item?.songId || '', item?.playedAt || '', item?.songName || ''].join('-')
+}
+
+function sourceLabel(item) {
+  const source = item?.source || 'netease'
+  if (source === 'netease') return ''
+  return item?.sourceLabel || source
 }
 
 function formatTime(t) {
@@ -359,14 +379,38 @@ function backToRadio() {
   flex: 1;
 }
 
-.track-title,
+.track-title-row,
 .track-meta {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+.track-title-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
 .track-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 850;
+}
+
+.source-badge {
+  min-height: 20px;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 0 7px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--blue) 12%, transparent);
+  color: var(--blue);
+  font-size: 0.66rem;
   font-weight: 850;
 }
 

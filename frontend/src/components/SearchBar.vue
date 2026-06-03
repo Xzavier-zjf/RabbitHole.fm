@@ -37,7 +37,7 @@
       <button
         v-for="(song, index) in results"
         :id="resultOptionId(index)"
-        :key="song.id"
+        :key="`${song.source || 'netease'}-${song.id}`"
         class="result-item"
         :class="{ active: activeIndex === index }"
         type="button"
@@ -52,7 +52,10 @@
           <Music :size="18" />
         </div>
         <div class="result-meta">
-          <div class="result-name">{{ song.name }}</div>
+          <div class="result-name-row">
+            <span class="result-name">{{ song.name }}</span>
+            <span v-if="sourceLabel(song)" class="source-badge">{{ sourceLabel(song) }}</span>
+          </div>
           <div class="result-artist">{{ (song.artists || []).join(' / ') || '未知歌手' }}</div>
         </div>
         <PlayCircle :size="18" class="result-play" />
@@ -170,6 +173,12 @@ function moveActiveResult(direction) {
 
 function resultOptionId(index) {
   return `search-result-${index}`
+}
+
+function sourceLabel(song) {
+  const source = song?.source || 'netease'
+  if (source === 'netease') return ''
+  return song?.sourceLabel || source
 }
 </script>
 
@@ -316,17 +325,41 @@ function resultOptionId(index) {
   flex: 1;
 }
 
-.result-name,
+.result-name-row,
 .result-artist {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+.result-name-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
 .result-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--text-primary);
   font-size: 0.92rem;
   font-weight: 800;
+}
+
+.source-badge {
+  min-height: 20px;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 0 7px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--blue) 12%, transparent);
+  color: var(--blue);
+  font-size: 0.66rem;
+  font-weight: 850;
 }
 
 .result-artist {
