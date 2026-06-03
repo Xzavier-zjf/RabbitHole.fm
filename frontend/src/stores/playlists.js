@@ -65,6 +65,8 @@ function normalizeTrack(track) {
     lyric: track.lyric || null,
     source,
     sourceLabel: track.sourceLabel || (source === 'netease' ? '网易云' : source),
+    sourceSongId: track.sourceSongId != null ? String(track.sourceSongId) : String(songId),
+    sourcePayload: track.sourcePayload || '',
     addedAt: track.addedAt || new Date().toISOString(),
   }
   return {
@@ -79,7 +81,7 @@ function createId() {
 
 function createTrackKey(track) {
   const source = track?.source || 'netease'
-  const songId = track?.songId ?? track?.id
+  const songId = track?.sourceSongId ?? track?.songId ?? track?.id
   return `${source}:${String(songId)}`
 }
 

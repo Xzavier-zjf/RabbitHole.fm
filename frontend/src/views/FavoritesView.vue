@@ -36,7 +36,10 @@
             <Music :size="18" />
           </div>
           <div class="track-info">
-            <div class="track-title">{{ f.songName }}</div>
+            <div class="track-title-row">
+              <span class="track-title">{{ f.songName }}</span>
+              <span v-if="sourceLabel(f)" class="source-badge">{{ sourceLabel(f) }}</span>
+            </div>
             <div class="track-meta">{{ f.artists || '未知歌手' }}</div>
           </div>
           <button class="icon-action" type="button" @click="playFavorite(f)" aria-label="播放歌曲" title="播放歌曲">
@@ -65,6 +68,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ChevronLeft, Heart, ListPlus, LoaderCircle, Music, Play, Trash2 } from '@lucide/vue'
 import { getFavorites, removeFavorite, proxyCoverUrl } from '../api'
+import { musicSource, musicSourceLabel, sourceSongId } from '../utils/music-source'
 import { usePlayerStore } from '../stores/player'
 import { usePlaylistsStore } from '../stores/playlists'
 import { useNoticeStore } from '../stores/notice'
@@ -92,9 +96,16 @@ async function fetch() {
 
 async function remove(f) {
   try {
-    await removeFavorite(f.songId)
+    await removeFavorite(f.songId, {
+      source: musicSource(f),
+      sourceSongId: sourceSongId(f),
+    })
     list.value = list.value.filter((x) => x.id !== f.id)
   } catch { /* ignore */ }
+}
+
+function sourceLabel(item) {
+  return musicSourceLabel(item)
 }
 
 function playFavorite(f) {
@@ -269,14 +280,38 @@ function backToRadio() {
   flex: 1;
 }
 
-.track-title,
+.track-title-row,
 .track-meta {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+.track-title-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
 .track-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 850;
+}
+
+.source-badge {
+  min-height: 20px;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 0 7px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--blue) 12%, transparent);
+  color: var(--blue);
+  font-size: 0.66rem;
   font-weight: 850;
 }
 

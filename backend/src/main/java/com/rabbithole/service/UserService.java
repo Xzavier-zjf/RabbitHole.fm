@@ -59,27 +59,39 @@ public class UserService {
         return userMapper.selectById(userId);
     }
 
-    public void addFavorite(Long userId, Long songId, String songName, String artists, String coverUrl) {
+    public void addFavorite(Long userId, Long songId, String source, String sourceSongId,
+                            String songName, String artists, String coverUrl,
+                            String songUrl, String sourcePayload) {
+        String normalizedSource = normalizeSource(source);
+        String normalizedSourceSongId = normalizeSourceSongId(sourceSongId, songId);
         UserFavorite existing = favoriteMapper.selectOne(
                 new LambdaQueryWrapper<UserFavorite>()
                         .eq(UserFavorite::getUserId, userId)
-                        .eq(UserFavorite::getSongId, songId));
+                        .eq(UserFavorite::getSource, normalizedSource)
+                        .eq(UserFavorite::getSourceSongId, normalizedSourceSongId));
         if (existing != null) return;
 
         UserFavorite fav = new UserFavorite();
         fav.setUserId(userId);
         fav.setSongId(songId);
+        fav.setSource(normalizedSource);
+        fav.setSourceSongId(normalizedSourceSongId);
         fav.setSongName(songName);
         fav.setArtists(artists);
         fav.setCoverUrl(coverUrl);
+        fav.setSongUrl(songUrl);
+        fav.setSourcePayload(sourcePayload);
         favoriteMapper.insert(fav);
     }
 
-    public void removeFavorite(Long userId, Long songId) {
+    public void removeFavorite(Long userId, Long songId, String source, String sourceSongId) {
+        String normalizedSource = normalizeSource(source);
+        String normalizedSourceSongId = normalizeSourceSongId(sourceSongId, songId);
         favoriteMapper.delete(
                 new LambdaQueryWrapper<UserFavorite>()
                         .eq(UserFavorite::getUserId, userId)
-                        .eq(UserFavorite::getSongId, songId));
+                        .eq(UserFavorite::getSource, normalizedSource)
+                        .eq(UserFavorite::getSourceSongId, normalizedSourceSongId));
     }
 
     public List<UserFavorite> getFavorites(Long userId) {
@@ -150,5 +162,16 @@ public class UserService {
         }
         userMapper.updateById(u);
         return u;
+    }
+
+    private String normalizeSource(String source) {
+        return source == null || source.isBlank() ? "netease" : source.trim();
+    }
+
+    private String normalizeSourceSongId(String sourceSongId, Long songId) {
+        if (sourceSongId != null && !sourceSongId.isBlank()) {
+            return sourceSongId.trim();
+        }
+        return songId != null ? String.valueOf(songId) : "";
     }
 }

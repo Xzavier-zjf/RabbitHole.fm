@@ -3,6 +3,7 @@ package com.rabbithole.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rabbithole.dto.LyricDTO;
 import com.rabbithole.dto.RadioItemDTO;
 import com.rabbithole.dto.SongDTO;
 import com.rabbithole.entity.SongRequest;
@@ -45,15 +46,18 @@ public class SongRequestService {
     public record MyRequestsPage(List<SongRequest> items, long total, int page, int size, boolean hasMore) {}
 
     public SubmitResult submit(Long userId, String username,
-                               Long channelId, Long songId, String message) throws IOException {
+                               Long channelId, SongDTO requestedSong, String message) throws IOException {
         String normalizedMessage = normalizeMessage(message);
         User u = userMapper.selectById(userId);
         String displayName = displayName(u, username);
+        Long songId = requestedSong.getId();
+        String source = normalizeSource(requestedSong.getSource());
+        String sourceSongId = normalizeSourceSongId(requestedSong.getSourceSongId(), songId);
 
-        SongRequest existing = findRecentPendingDuplicate(userId, channelId, songId, normalizedMessage);
+        SongRequest existing = findRecentPendingDuplicate(userId, channelId, source, sourceSongId, normalizedMessage);
         if (existing != null) {
-            log.info("song_request_duplicate userId={} channelId={} songId={} requestId={}",
-                    userId, channelId, songId, existing.getId());
+            log.info("song_request_duplicate userId={} channelId={} source={} sourceSongId={} requestId={}",
+                    userId, channelId, source, sourceSongId, existing.getId());
             return rebuildSubmitResult(existing, displayName);
         }
 
@@ -65,14 +69,15 @@ public class SongRequestService {
         }
 
         // 2. Cooldown check
-        String cdKey = "radio:request:cooldown:" + songId;
+        String cdKey = "radio:request:cooldown:" + source + ":" + sourceSongId;
         if (hasKeySafely(cdKey)) {
             throw new BizException("这首歌刚被点过，30 分钟后再试");
         }
 
         // 3. Fetch song metadata
-        SongDTO song = musicService.getSongDetail(songId);
+        SongDTO song = resolveSong(requestedSong);
         if (song == null) throw new BizException("歌曲不存在");
+        String artistsText = String.join("、", safeArtists(song));
 
         // 4. Persist
         SongRequest sr = new SongRequest();
@@ -80,8 +85,13 @@ public class SongRequestService {
         sr.setUsername(username);
         sr.setChannelId(channelId);
         sr.setSongId(songId);
+        sr.setSource(source);
+        sr.setSourceSongId(sourceSongId);
         sr.setSongName(song.getName());
-        sr.setArtists(String.join("、", song.getArtists()));
+        sr.setArtists(artistsText);
+        sr.setCoverUrl(song.getCoverUrl());
+        sr.setSongUrl(song.getSongUrl());
+        sr.setSourcePayload(song.getSourcePayload());
         sr.setMessage(normalizedMessage);
         sr.setStatus(0);
         requestMapper.insert(sr);
@@ -89,17 +99,14 @@ public class SongRequestService {
         // 5. Enqueue DJ intro + song to position 3
         String queueKey = "radio:queue:" + channelId;
 
-        RadioItemDTO djIntro = RadioItemDTO.dj(
-                "/api/radio/dj?nextId=" + songId
-                        + "&requester=" + java.net.URLEncoder.encode(displayName, "UTF-8")
-                        + "&message=" + java.net.URLEncoder.encode(normalizedMessage, "UTF-8"),
+        RadioItemDTO djIntro = RadioItemDTO.dj(buildDjUrl(song, displayName, normalizedMessage),
                 "点播", song.getName());
         djIntro.setRequestId(sr.getId());
         djIntro.setRequester(displayName);
         djIntro.setMessage(normalizedMessage);
         insertAt(queueKey, 3, mapper.writeValueAsString(djIntro));
 
-        RadioItemDTO songItem = RadioItemDTO.song(song, null, null);
+        RadioItemDTO songItem = RadioItemDTO.song(song, song.getSongUrl(), song.getLyric());
         songItem.setRequestId(sr.getId());
         songItem.setRequester(displayName);
         songItem.setMessage(normalizedMessage);
@@ -107,8 +114,8 @@ public class SongRequestService {
 
         // 6. Set cooldown (30 min)
         setCooldownSafely(cdKey, Duration.ofMinutes(30));
-        log.info("song_request_submitted requestId={} userId={} channelId={} songId={} requester={} messageLength={}",
-                sr.getId(), userId, channelId, songId, displayName, normalizedMessage.length());
+        log.info("song_request_submitted requestId={} userId={} channelId={} source={} sourceSongId={} requester={} messageLength={}",
+                sr.getId(), userId, channelId, source, sourceSongId, displayName, normalizedMessage.length());
         return new SubmitResult(sr.getId(), djIntro, songItem);
     }
 
@@ -229,7 +236,7 @@ public class SongRequestService {
     }
 
     private RadioItemDTO toRequestQueueItem(SongRequest request) throws IOException {
-        SongDTO song = musicService.getSongDetail(request.getSongId());
+        SongDTO song = songFromRequest(request);
         User user = request.getUserId() != null ? userMapper.selectById(request.getUserId()) : null;
         String requesterName = displayName(user, request.getUsername());
         RadioItemDTO item;
@@ -240,6 +247,10 @@ public class SongRequestService {
             item.setType("song");
             item.setSongId(request.getSongId());
             item.setName(request.getSongName());
+            item.setSource(normalizeSource(request.getSource()));
+            item.setSourceSongId(normalizeSourceSongId(request.getSourceSongId(), request.getSongId()));
+            item.setSongUrl(request.getSongUrl());
+            item.setSourcePayload(request.getSourcePayload());
         }
         item.setRequestId(request.getId());
         item.setRequester(requesterName);
@@ -250,13 +261,14 @@ public class SongRequestService {
         return item;
     }
 
-    private SongRequest findRecentPendingDuplicate(Long userId, Long channelId, Long songId, String message) {
+    private SongRequest findRecentPendingDuplicate(Long userId, Long channelId, String source, String sourceSongId, String message) {
         LocalDateTime since = LocalDateTime.now().minus(IDEMPOTENT_WINDOW);
         return requestMapper.selectOne(
                 new LambdaQueryWrapper<SongRequest>()
                         .eq(SongRequest::getUserId, userId)
                         .eq(SongRequest::getChannelId, channelId)
-                        .eq(SongRequest::getSongId, songId)
+                        .eq(SongRequest::getSource, source)
+                        .eq(SongRequest::getSourceSongId, sourceSongId)
                         .eq(SongRequest::getStatus, 0)
                         .eq(SongRequest::getMessage, message)
                         .ge(SongRequest::getCreatedAt, since)
@@ -264,24 +276,154 @@ public class SongRequestService {
     }
 
     private SubmitResult rebuildSubmitResult(SongRequest existing, String displayName) throws IOException {
-        SongDTO song = musicService.getSongDetail(existing.getSongId());
+        SongDTO song = songFromRequest(existing);
         if (song == null) {
             throw new BizException("歌曲不存在");
         }
-        RadioItemDTO djIntro = RadioItemDTO.dj(
-                "/api/radio/dj?nextId=" + existing.getSongId()
-                        + "&requester=" + java.net.URLEncoder.encode(displayName, "UTF-8")
-                        + "&message=" + java.net.URLEncoder.encode(existing.getMessage() != null ? existing.getMessage() : "", "UTF-8"),
-                "点播", song.getName());
+        RadioItemDTO djIntro = RadioItemDTO.dj(buildDjUrl(song, displayName, existing.getMessage()), "点播", song.getName());
         djIntro.setRequestId(existing.getId());
         djIntro.setRequester(displayName);
         djIntro.setMessage(existing.getMessage());
 
-        RadioItemDTO songItem = RadioItemDTO.song(song, null, null);
+        RadioItemDTO songItem = RadioItemDTO.song(song, song.getSongUrl(), song.getLyric());
         songItem.setRequestId(existing.getId());
         songItem.setRequester(displayName);
         songItem.setMessage(existing.getMessage());
         return new SubmitResult(existing.getId(), djIntro, songItem);
+    }
+
+    private SongDTO resolveSong(SongDTO requestedSong) throws IOException {
+        String source = normalizeSource(requestedSong.getSource());
+        String sourceSongId = normalizeSourceSongId(requestedSong.getSourceSongId(), requestedSong.getId());
+        if (isNetease(source)) {
+            SongDTO song = musicService.getSongDetail(requestedSong.getId());
+            if (song != null) {
+                song.setSource(source);
+                song.setSourceLabel("网易云");
+                song.setSourceSongId(sourceSongId);
+            }
+            return song;
+        }
+        if (requestedSong.getName() == null || requestedSong.getName().isBlank()) {
+            throw new BizException("外部音乐源缺少歌曲名称");
+        }
+        if (requestedSong.getSongUrl() == null || requestedSong.getSongUrl().isBlank()) {
+            throw new BizException("外部音乐源缺少可播放地址");
+        }
+        requestedSong.setSource(source);
+        requestedSong.setSourceSongId(sourceSongId);
+        if (requestedSong.getSourceLabel() == null || requestedSong.getSourceLabel().isBlank()) {
+            requestedSong.setSourceLabel(labelForSource(source));
+        }
+        if (requestedSong.getLyric() == null) {
+            requestedSong.setLyric(readLyricFromPayload(requestedSong.getSourcePayload()));
+        }
+        return requestedSong;
+    }
+
+    private SongDTO songFromRequest(SongRequest request) throws IOException {
+        String source = normalizeSource(request.getSource());
+        String sourceSongId = normalizeSourceSongId(request.getSourceSongId(), request.getSongId());
+        if (isNetease(source)) {
+            SongDTO song = musicService.getSongDetail(request.getSongId());
+            if (song != null) {
+                song.setSource(source);
+                song.setSourceLabel("网易云");
+                song.setSourceSongId(sourceSongId);
+            }
+            return song;
+        }
+        SongDTO song = new SongDTO();
+        song.setId(request.getSongId());
+        song.setName(request.getSongName());
+        song.setArtists(request.getArtists() != null && !request.getArtists().isBlank()
+                ? List.of(request.getArtists().split("[、/]\\s*"))
+                : List.of());
+        song.setCoverUrl(request.getCoverUrl());
+        song.setSongUrl(request.getSongUrl());
+        song.setSource(source);
+        song.setSourceLabel(labelForSource(source));
+        song.setSourceSongId(sourceSongId);
+        song.setSourcePayload(request.getSourcePayload());
+        song.setLyric(readLyricFromPayload(request.getSourcePayload()));
+        return song;
+    }
+
+    private LyricDTO readLyricFromPayload(String sourcePayload) {
+        if (sourcePayload == null || sourcePayload.isBlank()) {
+            return null;
+        }
+        try {
+            var node = mapper.readTree(sourcePayload);
+            var lyric = node.path("lyric");
+            if (lyric.isObject()) {
+                LyricDTO dto = new LyricDTO();
+                dto.setLrc(lyric.path("lrc").asText(""));
+                dto.setTlyric(lyric.path("tlyric").asText(""));
+                return dto.getLrc().isBlank() && dto.getTlyric().isBlank() ? null : dto;
+            }
+            String lrc = firstText(node, "lrc", "lyric");
+            if (!lrc.isBlank()) {
+                LyricDTO dto = new LyricDTO();
+                dto.setLrc(lrc);
+                dto.setTlyric("");
+                return dto;
+            }
+        } catch (Exception e) {
+            log.debug("Failed to parse source payload lyric", e);
+        }
+        return null;
+    }
+
+    private String buildDjUrl(SongDTO song, String displayName, String message) throws IOException {
+        StringBuilder url = new StringBuilder("/api/radio/dj?");
+        if (isNetease(song.getSource()) && song.getId() != null) {
+            url.append("nextId=").append(song.getId()).append("&");
+        }
+        url.append("nextName=").append(java.net.URLEncoder.encode(song.getName() != null ? song.getName() : "", "UTF-8"));
+        String artists = String.join("、", safeArtists(song));
+        if (!artists.isBlank()) {
+            url.append("&nextArtist=").append(java.net.URLEncoder.encode(artists, "UTF-8"));
+        }
+        url.append("&requester=").append(java.net.URLEncoder.encode(displayName, "UTF-8"));
+        url.append("&message=").append(java.net.URLEncoder.encode(message != null ? message : "", "UTF-8"));
+        return url.toString();
+    }
+
+    private List<String> safeArtists(SongDTO song) {
+        return song.getArtists() != null ? song.getArtists() : List.of();
+    }
+
+    private boolean isNetease(String source) {
+        return "netease".equals(normalizeSource(source));
+    }
+
+    private String normalizeSource(String source) {
+        return source == null || source.isBlank() ? "netease" : source.trim();
+    }
+
+    private String normalizeSourceSongId(String sourceSongId, Long songId) {
+        if (sourceSongId != null && !sourceSongId.isBlank()) {
+            return sourceSongId.trim();
+        }
+        return songId != null ? String.valueOf(songId) : "";
+    }
+
+    private String labelForSource(String source) {
+        String normalized = normalizeSource(source);
+        if ("netease".equals(normalized)) return "网易云";
+        if ("free-api".equals(normalized)) return "Free API";
+        return normalized;
+    }
+
+    private String firstText(com.fasterxml.jackson.databind.JsonNode node, String... fields) {
+        for (String field : fields) {
+            String value = node.path(field).asText("");
+            if (value != null && !value.isBlank() && !"null".equalsIgnoreCase(value)) {
+                return value.trim();
+            }
+        }
+        return "";
     }
 
     private String displayName(User user, String fallbackUsername) {
@@ -302,6 +444,8 @@ public class SongRequestService {
         return String.join("|",
                 item.getType() != null ? item.getType() : "song",
                 String.valueOf(item.getRequestId() != null ? item.getRequestId() : 0L),
+                item.getSource() != null ? item.getSource() : "netease",
+                item.getSourceSongId() != null ? item.getSourceSongId() : "",
                 String.valueOf(item.getSongId() != null ? item.getSongId() : 0L),
                 item.getRequester() != null ? item.getRequester() : "",
                 item.getMessage() != null ? item.getMessage() : "",

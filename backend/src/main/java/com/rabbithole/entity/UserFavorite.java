@@ -15,8 +15,12 @@ public class UserFavorite {
     private Long id;
     private Long userId;
     private Long songId;
+    private String source;
+    private String sourceSongId;
     private String songName;
     private String artists;
     private String coverUrl;
+    private String songUrl;
+    private String sourcePayload;
     private LocalDateTime createdAt;
 }

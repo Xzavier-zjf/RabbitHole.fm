@@ -66,8 +66,8 @@
               type="button"
               :disabled="!canRequestSong(s)"
               @click="pick(s)"
-              :aria-label="canRequestSong(s) ? '选择点歌' : '外部源暂不支持房间点歌'"
-              :title="canRequestSong(s) ? '选择点歌' : '外部源暂不支持房间点歌，可先试听或加入歌单'"
+              :aria-label="canRequestSong(s) ? '选择点歌' : '缺少可播放地址，暂不能点歌'"
+              :title="canRequestSong(s) ? '选择点歌' : '缺少可播放地址，暂不能点歌'"
             >
               <Plus :size="18" />
             </button>
@@ -98,7 +98,7 @@
             <div class="picked-meta">{{ (pickedSong.artists || []).join(' / ') || '未知歌手' }}</div>
           </div>
           <p v-if="pickedSong && !canRequestSong(pickedSong)" class="inline-error">
-            这个结果来自 {{ pickedSong.sourceLabel || pickedSong.source }}，当前房间点歌只支持网易云来源。
+            这个结果缺少可播放地址，暂时不能加入房间点歌。
           </p>
           <textarea
             v-model="message"
@@ -200,6 +200,7 @@ import { useRequestFeedStore } from '../stores/request-feed'
 import { usePlaylistsStore } from '../stores/playlists'
 import { useNoticeStore } from '../stores/notice'
 import { searchSongs, submitSongRequest, getMyRequests, cancelRequest, proxyCoverUrl } from '../api'
+import { musicSource, musicSourceLabel, requestPayload, sourcePayload, sourceSongId } from '../utils/music-source'
 
 const route = useRoute()
 const playerStore = usePlayerStore()
@@ -270,7 +271,7 @@ function pick(song) {
     notice.show({
       type: 'info',
       title: 'Requests',
-      message: '外部音乐源可以试听或加入歌单；房间点歌暂时只支持网易云来源。',
+      message: '这条搜索结果缺少可播放地址，暂时不能点歌。',
       duration: 2600,
     })
     return
@@ -287,8 +288,14 @@ async function submitRequest() {
     id: tempRequestId,
     channelId,
     songId: pickedSong.value.id,
+    source: musicSource(pickedSong.value),
+    sourceLabel: pickedSong.value.sourceLabel || (musicSource(pickedSong.value) === 'netease' ? '网易云' : musicSource(pickedSong.value)),
+    sourceSongId: sourceSongId(pickedSong.value),
     songName: pickedSong.value.name,
     artists: (pickedSong.value.artists || []).join(' / '),
+    coverUrl: pickedSong.value.coverUrl,
+    songUrl: pickedSong.value.songUrl,
+    sourcePayload: sourcePayload(pickedSong.value),
     message: message.value.trim(),
     status: 0,
     createdAt: new Date().toISOString(),
@@ -298,9 +305,14 @@ async function submitRequest() {
     channelId,
     type: 'song',
     songId: pickedSong.value.id,
+    source: musicSource(pickedSong.value),
+    sourceLabel: pickedSong.value.sourceLabel || (musicSource(pickedSong.value) === 'netease' ? '网易云' : musicSource(pickedSong.value)),
+    sourceSongId: sourceSongId(pickedSong.value),
     name: pickedSong.value.name,
     artists: pickedSong.value.artists || [],
     coverUrl: pickedSong.value.coverUrl,
+    songUrl: pickedSong.value.songUrl,
+    sourcePayload: sourcePayload(pickedSong.value),
     requester: userStore.profile?.nickname || userStore.profile?.username || 'Rabbit',
     message: optimisticRequest.message,
   }
@@ -312,13 +324,7 @@ async function submitRequest() {
   submitting.value = true
   resultMsg.value = ''
   try {
-    const res = await submitSongRequest({
-      channelId,
-      songId: pickedSong.value.id,
-      songName: pickedSong.value.name,
-      artists: (pickedSong.value.artists || []).join(' / '),
-      message: message.value,
-    })
+    const res = await submitSongRequest(requestPayload(pickedSong.value, channelId, message.value))
     const data = res.data
     if (data?.code && data.code !== 0) {
       throw new Error(data.msg || '点歌失败')
@@ -375,13 +381,13 @@ function saveSong(song) {
 }
 
 function canRequestSong(song) {
-  return !song?.source || song.source === 'netease'
+  if (!song?.id && !song?.songId) return false
+  if (musicSource(song) === 'netease') return true
+  return !!song.songUrl
 }
 
 function sourceLabel(song) {
-  const source = song?.source || 'netease'
-  if (source === 'netease') return ''
-  return song?.sourceLabel || source
+  return musicSourceLabel(song)
 }
 
 async function fetchMyRequests(options = {}) {

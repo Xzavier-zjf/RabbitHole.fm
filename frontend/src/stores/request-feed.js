@@ -23,7 +23,8 @@ export const useRequestFeedStore = defineStore('request-feed', () => {
     if (item.songId != null && item.songId !== '') {
       return [
         'song',
-        item.songId,
+        item.source || 'netease',
+        item.sourceSongId || item.songId,
         item.requester || '',
         item.message || '',
         item.createdAt || item.requestedAt || '',

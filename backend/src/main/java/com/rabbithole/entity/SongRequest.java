@@ -17,8 +17,13 @@ public class SongRequest {
     private String username;
     private Long channelId;
     private Long songId;
+    private String source;
+    private String sourceSongId;
     private String songName;
     private String artists;
+    private String coverUrl;
+    private String songUrl;
+    private String sourcePayload;
     private String message;
     private Integer status; // 0=pending, 1=played, 2=skipped
     private LocalDateTime createdAt;

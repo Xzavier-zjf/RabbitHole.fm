@@ -41,12 +41,41 @@ public class RadioController {
     @GetMapping(value = "/dj", produces = "audio/wav")
     public ResponseEntity<byte[]> getDjAudio(
             @RequestParam(required = false) Long prevId,
-            @RequestParam Long nextId,
+            @RequestParam(required = false) Long nextId,
+            @RequestParam(required = false) String nextName,
+            @RequestParam(required = false) String nextArtist,
             @RequestParam(required = false) String requester,
             @RequestParam(required = false) String message) throws IOException {
 
-        SongDTO prev = prevId != null ? musicService.getSongDetail(prevId) : null;
-        SongDTO next = musicService.getSongDetail(nextId);
+        SongDTO prev = null;
+        SongDTO next = null;
+        if (prevId != null) {
+            try {
+                prev = musicService.getSongDetail(prevId);
+            } catch (IOException ignored) {
+                // DJ intro can still be generated without previous song metadata.
+            }
+        }
+        if (nextId != null) {
+            try {
+                next = musicService.getSongDetail(nextId);
+            } catch (IOException ignored) {
+                // Fall back to nextName/nextArtist below when detail lookup is unavailable.
+            }
+        }
+        if (next == null && nextName != null && !nextName.isBlank()) {
+            next = new SongDTO();
+            next.setId(nextId);
+            next.setName(nextName);
+            next.setArtists(nextArtist != null && !nextArtist.isBlank()
+                    ? List.of(nextArtist.split("[、/]\\s*"))
+                    : List.of());
+        }
+        if (next == null) {
+            next = new SongDTO();
+            next.setName("下一首歌");
+            next.setArtists(List.of());
+        }
 
         DjScriptService.DjScript script;
         if (requester != null && !requester.isEmpty()) {

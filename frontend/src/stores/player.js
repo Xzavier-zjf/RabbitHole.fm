@@ -90,7 +90,7 @@ function normalizeArtists(artists) {
 
 function normalizeQueueSong(song) {
   if (!song || typeof song !== 'object') return null
-  const rawSongId = song.id ?? song.songId
+  const rawSongId = song.songId ?? song.id
   if (rawSongId == null || rawSongId === '') return null
   const numericSongId = Number(rawSongId)
   if (!Number.isFinite(numericSongId) || numericSongId <= 0) return null
@@ -109,6 +109,8 @@ function normalizeQueueSong(song) {
     lyric: song.lyric || '',
     source: song.source || 'netease',
     sourceLabel: song.sourceLabel || '网易云',
+    sourceSongId: song.sourceSongId != null ? String(song.sourceSongId) : String(rawSongId),
+    sourcePayload: song.sourcePayload || '',
   }
 }
 
@@ -367,6 +369,8 @@ export const usePlayerStore = defineStore('player', () => {
       coverUrl: item.coverUrl || '',
       source: item.source || 'netease',
       sourceLabel: item.sourceLabel || '网易云',
+      sourceSongId: item.sourceSongId || String(item.songId),
+      sourcePayload: item.sourcePayload || '',
       songUrl: item.songUrl || '',
       lyric: item.lyric || null,
       channelId: currentChannelId.value,
@@ -563,7 +567,7 @@ export const usePlayerStore = defineStore('player', () => {
 
   function queueItemKey(item) {
     const source = item?.source || 'netease'
-    return `${item?.type || 'song'}:${source}:${item?.songId || item?.djUrl || ''}`
+    return `${item?.type || 'song'}:${source}:${item?.sourceSongId || item?.songId || item?.djUrl || ''}`
   }
 
   function getPlaybackViewState() {

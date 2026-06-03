@@ -39,7 +39,7 @@ public class MusicSearchAggregatorService {
                 putUnique(merged, song);
             }
         } catch (Exception e) {
-            log.warn("Free API search failed for keywords={}", keywords, e);
+            log.warn("Free API search failed for keywords={}: {}", keywords, e.getMessage());
         }
 
         if (merged.isEmpty() && primaryFailure != null) {

@@ -131,7 +131,7 @@ public class NeteaseMusicService {
     }
 
     public List<SongDTO> search(String keywords, int limit) throws IOException {
-        String url = String.format("%s/search?keywords=%s&limit=%d&type=1",
+        String url = String.format("%s/cloudsearch?keywords=%s&limit=%d&type=1",
                 apiBase, java.net.URLEncoder.encode(keywords, "UTF-8"), limit);
         JsonNode node = doGet(url);
         List<SongDTO> list = new ArrayList<>();
@@ -140,11 +140,13 @@ public class NeteaseMusicService {
             dto.setId(s.path("id").asLong());
             dto.setName(s.path("name").asText());
             List<String> artists = new ArrayList<>();
-            s.path("ar").forEach(a -> artists.add(a.path("name").asText()));
+            JsonNode artistNodes = s.has("ar") ? s.path("ar") : s.path("artists");
+            artistNodes.forEach(a -> artists.add(a.path("name").asText()));
             dto.setArtists(artists);
-            dto.setAlbum(s.path("al").path("name").asText());
-            dto.setCoverUrl(s.path("al").path("picUrl").asText());
-            dto.setDurationMs(s.path("dt").asLong());
+            JsonNode albumNode = s.has("al") ? s.path("al") : s.path("album");
+            dto.setAlbum(albumNode.path("name").asText());
+            dto.setCoverUrl(albumNode.path("picUrl").asText());
+            dto.setDurationMs(s.has("dt") ? s.path("dt").asLong() : s.path("duration").asLong());
             markSource(dto);
             list.add(dto);
         }
@@ -153,7 +155,7 @@ public class NeteaseMusicService {
 
     public boolean checkApiStatus() {
         try {
-            String url = apiBase + "/search?keywords=test&limit=1&type=1";
+            String url = apiBase + "/login/status";
             doGet(url);
             return true;
         } catch (Exception e) {
@@ -168,6 +170,7 @@ public class NeteaseMusicService {
     private void markSource(SongDTO dto) {
         dto.setSource("netease");
         dto.setSourceLabel("网易云");
+        dto.setSourceSongId(dto.getId() != null ? String.valueOf(dto.getId()) : "");
     }
 
     private String readCache(String key) {

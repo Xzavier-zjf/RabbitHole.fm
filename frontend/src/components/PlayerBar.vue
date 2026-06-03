@@ -54,15 +54,15 @@
 
     <div class="player-actions">
       <button
-        v-if="canUseAccountLibrary(player.currentItem)"
+        v-if="player.currentItem.songId"
         class="action-btn"
-        :class="{ active: favIds.has(player.currentItem.songId) }"
+        :class="{ active: isFavorited }"
         type="button"
         @click="toggleFav"
-        :title="favIds.has(player.currentItem.songId) ? '取消收藏' : '收藏歌曲'"
-        :aria-label="favIds.has(player.currentItem.songId) ? '取消收藏' : '收藏歌曲'"
+        :title="isFavorited ? '取消收藏' : '收藏歌曲'"
+        :aria-label="isFavorited ? '取消收藏' : '收藏歌曲'"
       >
-        <Heart :size="18" :fill="favIds.has(player.currentItem.songId) ? 'currentColor' : 'none'" />
+        <Heart :size="18" :fill="isFavorited ? 'currentColor' : 'none'" />
       </button>
 
       <button
@@ -119,6 +119,7 @@ import { useUserStore } from '../stores/user'
 import { useNoticeStore } from '../stores/notice'
 import { usePlaylistsStore } from '../stores/playlists'
 import { proxyCoverUrl, addFavorite, removeFavorite, getFavorites } from '../api'
+import { favoritePayload, musicKey, musicSource, sourceSongId } from '../utils/music-source'
 import { ref, onMounted, computed, watch } from 'vue'
 import {
   Heart,
@@ -143,6 +144,9 @@ const coverFailed = ref(false)
 
 const showCoverImage = computed(() => !!player.currentItem?.coverUrl && !coverFailed.value)
 const itemTypeLabel = computed(() => player.currentItem?.type === 'dj' ? 'DJ 口播' : 'RabbitHole.fm')
+const isFavorited = computed(() => {
+  return player.currentItem?.songId ? favIds.value.has(musicKey(player.currentItem)) : false
+})
 const progressValueText = computed(() => {
   return `${formatTime(player.currentTime)} / ${formatTime(player.duration)}`
 })
@@ -157,31 +161,27 @@ async function loadFavs() {
   if (!userStore.isLoggedIn) return
   try {
     const res = await getFavorites()
-    favIds.value = new Set((res.data || []).map((f) => f.songId))
+    favIds.value = new Set((res.data || []).map(musicKey))
   } catch { /* ignore */ }
 }
 
 async function toggleFav() {
   if (!userStore.isLoggedIn) return
   const item = player.currentItem
-  if (!canUseAccountLibrary(item)) return
+  if (!item?.songId) return
+  const key = musicKey(item)
   try {
-    if (favIds.value.has(item.songId)) {
-      await removeFavorite(item.songId)
-      favIds.value.delete(item.songId)
-    } else {
-      await addFavorite(item.songId, {
-        songName: item.name || '',
-        artists: (item.artists || []).join(' / '),
-        coverUrl: item.coverUrl || '',
+    if (favIds.value.has(key)) {
+      await removeFavorite(item.songId, {
+        source: musicSource(item),
+        sourceSongId: sourceSongId(item),
       })
-      favIds.value.add(item.songId)
+      favIds.value.delete(key)
+    } else {
+      await addFavorite(item.songId, favoritePayload(item))
+      favIds.value.add(key)
     }
   } catch { /* ignore */ }
-}
-
-function canUseAccountLibrary(item) {
-  return !!item?.songId && (!item.source || item.source === 'netease')
 }
 
 function addToPlaylist() {

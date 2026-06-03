@@ -17,6 +17,10 @@ public class RadioItemDTO {
     private String djUrl;
     private String songUrl;
     private LyricDTO lyric;
+    private String source;
+    private String sourceLabel;
+    private String sourceSongId;
+    private String sourcePayload;
     private String requester;
     private String message;
 
@@ -31,6 +35,10 @@ public class RadioItemDTO {
         item.setDurationMs(song.getDurationMs());
         item.setSongUrl(url);
         item.setLyric(lyric);
+        item.setSource(song.getSource());
+        item.setSourceLabel(song.getSourceLabel());
+        item.setSourceSongId(song.getSourceSongId());
+        item.setSourcePayload(song.getSourcePayload());
         return item;
     }
 

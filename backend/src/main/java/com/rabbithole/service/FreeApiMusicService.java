@@ -68,7 +68,7 @@ public class FreeApiMusicService {
             search("test", 1);
             return true;
         } catch (Exception e) {
-            log.warn("Free API music source is unavailable", e);
+            log.warn("Free API music source is unavailable: {}", e.getMessage());
             return false;
         }
     }
@@ -116,6 +116,11 @@ public class FreeApiMusicService {
         dto.setSongUrl(url);
         dto.setSource(SOURCE);
         dto.setSourceLabel(SOURCE_LABEL);
+        dto.setSourceSongId(firstText(item, "songid", "id"));
+        if (dto.getSourceSongId().isBlank()) {
+            dto.setSourceSongId(String.valueOf(dto.getId()));
+        }
+        dto.setSourcePayload(item.toString());
 
         String lrc = firstText(item, "lrc", "lyric");
         if (!lrc.isBlank()) {
@@ -174,12 +179,15 @@ public class FreeApiMusicService {
     }
 
     private JsonNode doGet(String url) throws IOException {
+        OkHttpClient freeApiHttp = http.newBuilder()
+                .callTimeout(Duration.ofSeconds(5))
+                .build();
         Request req = new Request.Builder()
                 .url(url)
                 .header("User-Agent", "RabbitHole.fm/1.0")
                 .get()
                 .build();
-        try (Response resp = http.newCall(req).execute()) {
+        try (Response resp = freeApiHttp.newCall(req).execute()) {
             if (!resp.isSuccessful()) {
                 String body = resp.body() != null ? resp.body().string() : "<empty body>";
                 throw new IOException("Free API music source error " + resp.code() + " for " + url + ": " + body);

@@ -1,6 +1,7 @@
 package com.rabbithole.controller;
 
 import com.rabbithole.dto.RadioItemDTO;
+import com.rabbithole.dto.SongDTO;
 import com.rabbithole.entity.SongRequest;
 import com.rabbithole.service.SongRequestService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -8,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -35,7 +37,7 @@ public class RequestController {
         if (songId == null) throw new IllegalArgumentException("songId required");
 
         String message = (String) body.getOrDefault("message", "");
-        var result = requestService.submit(userId, username, channelId, songId, message);
+        var result = requestService.submit(userId, username, channelId, buildSong(body, songId), message);
         return Map.of("code", 0, "msg", "点歌成功",
                 "id", result.requestId(),
                 "djItem", result.djItem(),
@@ -80,5 +82,62 @@ public class RequestController {
             return requestService.getMyRequestsPage(userId, safePage, safeSize);
         }
         return requestService.getMyRequests(userId, limit);
+    }
+
+    private SongDTO buildSong(Map<String, Object> body, Long songId) {
+        SongDTO song = new SongDTO();
+        song.setId(songId);
+        song.setName(stringValue(body, "songName", ""));
+        song.setArtists(parseArtists(body.get("artists")));
+        song.setAlbum(stringValue(body, "album", ""));
+        song.setCoverUrl(stringValue(body, "coverUrl", ""));
+        song.setDurationMs(longValue(body.get("durationMs")));
+        song.setSource(stringValue(body, "source", "netease"));
+        song.setSourceLabel(stringValue(body, "sourceLabel", song.getSource()));
+        song.setSourceSongId(stringValue(body, "sourceSongId", String.valueOf(songId)));
+        song.setSongUrl(stringValue(body, "songUrl", ""));
+        song.setSourcePayload(stringValue(body, "sourcePayload", ""));
+        return song;
+    }
+
+    private List<String> parseArtists(Object raw) {
+        if (raw instanceof List<?> list) {
+            List<String> artists = new ArrayList<>();
+            for (Object item : list) {
+                if (item != null && !String.valueOf(item).isBlank()) {
+                    artists.add(String.valueOf(item).trim());
+                }
+            }
+            return artists;
+        }
+        String value = raw != null ? String.valueOf(raw) : "";
+        if (value.isBlank()) return List.of();
+        List<String> artists = new ArrayList<>();
+        for (String item : value.split("[、/]\\s*")) {
+            if (!item.isBlank()) {
+                artists.add(item.trim());
+            }
+        }
+        return artists;
+    }
+
+    private Long longValue(Object raw) {
+        if (raw instanceof Number number) {
+            return number.longValue();
+        }
+        if (raw == null || String.valueOf(raw).isBlank()) return null;
+        try {
+            return Long.parseLong(String.valueOf(raw));
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
+
+    private String stringValue(Map<String, Object> body, String key, String fallback) {
+        Object raw = body.get(key);
+        if (raw == null || String.valueOf(raw).isBlank()) {
+            return fallback;
+        }
+        return String.valueOf(raw).trim();
     }
 }

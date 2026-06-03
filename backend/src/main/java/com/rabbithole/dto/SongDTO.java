@@ -14,6 +14,8 @@ public class SongDTO {
     private Long durationMs;
     private String source;
     private String sourceLabel;
+    private String sourceSongId;
     private String songUrl;
     private LyricDTO lyric;
+    private String sourcePayload;
 }

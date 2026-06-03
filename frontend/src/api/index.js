@@ -133,7 +133,12 @@ export const popNext = (channelId) => api.post('/radio/next', null, { params: { 
 
 // Favorites
 export const addFavorite = (songId, data) => api.post(`/user/favorite/${songId}`, data)
-export const removeFavorite = (songId) => api.delete(`/user/favorite/${songId}`)
+export const removeFavorite = (songId, data = {}) => api.delete(`/user/favorite/${songId}`, {
+  params: {
+    source: data.source || 'netease',
+    sourceSongId: data.sourceSongId || songId,
+  },
+})
 export const getFavorites = () => api.get('/user/favorites')
 
 // History

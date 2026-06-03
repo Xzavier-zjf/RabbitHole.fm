@@ -67,6 +67,9 @@ public class MusicController {
     }
 
     private CoverPayload fetchCoverBytes(String url) throws IOException {
+        OkHttpClient coverHttp = http.newBuilder()
+                .callTimeout(java.time.Duration.ofSeconds(4))
+                .build();
         for (String candidate : coverCandidates(url)) {
             if (!isHttpUrl(candidate)) {
                 continue;
@@ -78,7 +81,7 @@ public class MusicController {
                     .header("Accept", "image/avif,image/webp,image/apng,image/*,*/*;q=0.8")
                     .get()
                     .build();
-            try (Response resp = http.newCall(req).execute()) {
+            try (Response resp = coverHttp.newCall(req).execute()) {
                 if (resp.isSuccessful() && resp.body() != null) {
                     String contentType = resp.header(HttpHeaders.CONTENT_TYPE);
                     if (contentType != null && !contentType.isBlank() && !isImageContentType(contentType)) {

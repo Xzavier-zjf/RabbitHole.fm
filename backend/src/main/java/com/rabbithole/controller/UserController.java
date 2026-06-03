@@ -64,21 +64,27 @@ public class UserController {
 
     @PostMapping("/favorite/{songId}")
     public Map<String, Object> addFavorite(@PathVariable Long songId,
-                                           @RequestBody(required = false) Map<String, String> body,
+                                           @RequestBody(required = false) Map<String, Object> body,
                                            HttpServletRequest request) {
         Long userId = (Long) request.getAttribute("userId");
-        String songName = body != null ? body.getOrDefault("songName", "") : "";
-        String artists = body != null ? body.getOrDefault("artists", "") : "";
-        String coverUrl = body != null ? body.getOrDefault("coverUrl", "") : "";
-        userService.addFavorite(userId, songId, songName, artists, coverUrl);
+        String source = stringValue(body, "source", "netease");
+        String sourceSongId = stringValue(body, "sourceSongId", String.valueOf(songId));
+        String songName = stringValue(body, "songName", "");
+        String artists = stringValue(body, "artists", "");
+        String coverUrl = stringValue(body, "coverUrl", "");
+        String songUrl = stringValue(body, "songUrl", "");
+        String sourcePayload = stringValue(body, "sourcePayload", "");
+        userService.addFavorite(userId, songId, source, sourceSongId, songName, artists, coverUrl, songUrl, sourcePayload);
         return Map.of("code", 0, "msg", "已收藏");
     }
 
     @DeleteMapping("/favorite/{songId}")
     public Map<String, Object> removeFavorite(@PathVariable Long songId,
+                                              @RequestParam(defaultValue = "netease") String source,
+                                              @RequestParam(required = false) String sourceSongId,
                                               HttpServletRequest request) {
         Long userId = (Long) request.getAttribute("userId");
-        userService.removeFavorite(userId, songId);
+        userService.removeFavorite(userId, songId, source, sourceSongId);
         return Map.of("code", 0, "msg", "已取消收藏");
     }
 
@@ -182,5 +188,13 @@ public class UserController {
         String avatarUrl = "/avatars/" + filename;
         userService.updateProfile(userId, null, avatarUrl);
         return Map.of("code", 0, "msg", "上传成功", "avatarUrl", avatarUrl);
+    }
+
+    private String stringValue(Map<String, Object> body, String key, String fallback) {
+        if (body == null || !body.containsKey(key) || body.get(key) == null) {
+            return fallback;
+        }
+        String value = String.valueOf(body.get(key));
+        return value.isBlank() ? fallback : value;
     }
 }

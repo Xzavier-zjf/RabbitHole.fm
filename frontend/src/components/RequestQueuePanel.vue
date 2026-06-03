@@ -73,6 +73,7 @@
             <div class="queue-title-row">
               <span class="queue-position">#{{ index + 1 }}</span>
               <div class="queue-title">{{ queueTitle(item) }}</div>
+              <span v-if="sourceLabel(item)" class="source-badge">{{ sourceLabel(item) }}</span>
             </div>
             <div class="queue-meta">
               <span class="queue-requester">
@@ -151,6 +152,7 @@ import { usePlayerStore } from '../stores/player'
 import { useRequestFeedStore } from '../stores/request-feed'
 import { cancelRequest, getRequestQueue, proxyCoverUrl } from '../api'
 import { useNoticeStore } from '../stores/notice'
+import { musicSourceLabel } from '../utils/music-source'
 
 const props = defineProps({
   channelId: {
@@ -246,6 +248,11 @@ function requesterLabel(item) {
 function queueTitle(item) {
   if (item.type === 'dj') return item.name || 'DJ 口播'
   return item.name || '未命名歌曲'
+}
+
+function sourceLabel(item) {
+  if (item.type === 'dj') return ''
+  return musicSourceLabel(item)
 }
 
 function queueMessage(item) {
@@ -555,11 +562,25 @@ async function cancelQueueItem(item) {
 
 .queue-title {
   min-width: 0;
+  flex: 1;
   color: var(--text-primary);
   font-size: 0.86rem;
   font-weight: 800;
   line-height: 1.42;
   overflow-wrap: anywhere;
+}
+
+.source-badge {
+  min-height: 20px;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 0 7px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--blue) 12%, transparent);
+  color: var(--blue);
+  font-size: 0.64rem;
+  font-weight: 850;
 }
 
 .queue-meta {
